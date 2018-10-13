@@ -1,0 +1,92 @@
+---
+title: "aln_merge"
+output: html_document
+---
+
+## Split the fastq files for faster processing
+This can be handled within flowr.
+
+```{r}
+## Usually fastq gz has around 4 fold difference...
+## 50 GB file becomes around 200 GB
+#devtools::load_all("~/Dropbox/public/github_ngsflows")
+#devtools::load_all("~/Dropbox/public/github_flow/")
+
+
+require(flowr); require(ngsflows)
+
+x = "/rsrch1/iacs/tmp/illumina_platinum/50x/NA12877/ERR194146_1.fastq.gz"
+x = "/rsrch1/iacs/tmp/illumina_platinum/50x/NA12877/ERR194146_2.fastq.gz"
+samplename = "ERR194146"
+
+## load_conf() ## load a parameter file with all the configurations.
+
+## to handle both reads, might need to handle the jobname
+out_split1 = split_fq(x, samplename = samplename, chunks = 200, jobname = "split_fq1")
+out_split2 = split_fq(x, samplename = samplename, chunks = 200, jobname = "split_fq2")
+
+
+source("~/Dropbox/public/github_ngsflows/pipelines/aln_merge.R")
+out_aln_merge = aln_bwa_merge(fqs1 = out_split1$outfiles,
+  fqs2 = out_split1$outfiles,
+  samplename = samplename)
+
+
+## --- stitch all the commands together!
+flowmat = rbind(
+  out_split1$flowmat,
+  out_split2$flowmat,
+  out_aln_merge$flowmat)
+
+flowdef = to_flowdef(flowmat)
+#write.table(flowdef, "ex_flow.def", row.names = FALSE, quote = FALSE, sep = "\t")
+
+```
+
+## create a flow object using this flow mat
+```{r message=FALSE}
+fobj = to_flow(x = flowmat, def = flowdef, submit = FALSE)
+plot_flow(fobj)
+```
+
+## read a new flowdef
+```{r message=FALSE}
+flowdef = as.flowdef("~/Dropbox/public/github_ngsflows/vignettes/ex_flow2.def")
+fobj = to_flow(x = flowmat, def = flowdef)
+plot_flow(fobj)
+```
+
+
+## Test if getting the fastq sheet works:
+
+
+```
+wd=/rsrch1/iacs/tmp/illumina_platinum/50x/NA12877/splt
+cd $wd
+flowr ngsflows:::create_fq_sheet x=$wd format="{{samplename}}_{{read}}_{{num}}.fastq.gz"
+```
+## Testing aln_merge
+
+### Test step by step
+
+Parse fastqs in a nice and clean format
+
+```{r}
+library(params)
+require(ngsflows)
+
+wd='/rsrch1/iacs/tmp/illumina_platinum/50x/NA12877/splt'
+out = create_fq_sheet(x=wd, format="{{samplename}}_{{read}}.{{num}}.fastq", ext = "fastq")
+params::kable(head(out))
+```
+
+
+## Test on MiSeq data
+```{r}
+wd = "/rsrch1/genetics/htep/hiseq/150707_ST-J00106_0022_AH35LGBBXX/Unaligned/YLD-NS-KO_RNA109";setwd(wd)
+require(ngsflows)
+out = create_fq_sheet(x=wd)
+params::kable(head(out))
+```
+
+

@@ -1,0 +1,23 @@
+Package: my.ultraseq
+Type: Package
+Title: Robust Pipelines for Next-Generation Sequencing Analysis; A Companion
+    Package for flowr
+Version: 0.3.9012
+Date: 2014-12-08
+Author: Sahil Seth
+Maintainer: Sahil Seth <sseth@mdanderson.org>
+Depends:
+    flowr  (>= 0.9.7.10),
+    ultraseq,
+    utils
+Imports:
+    params,
+    RCurl,
+    curl
+Suggests:
+    Rsamtools
+Description: Provides a host of modules and pipelines supporting a host of
+    genomics data ranging from whole genome/exome sequencing, RNA-Seq and chipseq
+    etc.
+License: GPL
+RoxygenNote: 6.0.1
