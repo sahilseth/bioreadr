@@ -2,7 +2,6 @@
 % Please edit documentation in R/annotate.R, R/annotate2.R
 \name{annotate}
 \alias{annotate}
-\alias{annotate}
 \title{Generates a cmdline, when invoked annotates files using annovar}
 \usage{
 annotate(files, samplename = opts_flow$get("samplename"), outfile,

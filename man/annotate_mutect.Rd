@@ -2,17 +2,18 @@
 % Please edit documentation in R/annotate.R, R/annotate2.R
 \name{annotate_mutect}
 \alias{annotate_mutect}
-\alias{annotate_mutect}
 \title{annotate_mutect}
 \usage{
-annotate_mutect(x, odir, oprefix, tumorBAM, normalBAM, organism = "human",
-  build, annovar_path = "/scratch/iacs/apps/annovar/latest", protocols_g,
+annotate_mutect(x, odir, oprefix, tumorBAM, normalBAM,
+  organism = "human", build,
+  annovar_path = "/scratch/iacs/apps/annovar/latest", protocols_g,
   protocols_f, full = FALSE, chrom = "contig", start = "position",
   end = "position", ref = "ref_allele", alt = "alt_allele",
   use_uuid = TRUE)
 
-annotate_mutect(x, odir, oprefix, tumorBAM, normalBAM, organism = "human",
-  build, annovar_path = "/scratch/iacs/apps/annovar/latest", protocols_g,
+annotate_mutect(x, odir, oprefix, tumorBAM, normalBAM,
+  organism = "human", build,
+  annovar_path = "/scratch/iacs/apps/annovar/latest", protocols_g,
   protocols_f, full = FALSE, chrom = "contig", start = "position",
   end = "position", ref = "ref_allele", alt = "alt_allele",
   use_uuid = TRUE)

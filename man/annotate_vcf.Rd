@@ -2,7 +2,6 @@
 % Please edit documentation in R/annotate.R, R/annotate2.R
 \name{annotate_vcf}
 \alias{annotate_vcf}
-\alias{annotate_vcf}
 \title{Not tested}
 \usage{
 annotate_vcf(x, oprefix, odir, build, use_uuid, annovar_path, protocols_f,
