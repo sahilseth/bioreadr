@@ -4,8 +4,9 @@
 \alias{pyclone_prep_input}
 \title{prepare input for pyclone}
 \usage{
-pyclone_prep_input(segfl, mutfl, segfl_type = c("sequenza", "facets"),
-  mutfl_type = c("mutect_ann"), outfile)
+pyclone_prep_input(segfl, mutfl, lst_bams = list(),
+  segfl_type = c("sequenza", "facets"), mutfl_type = c("mutect_ann",
+  "mutect_bamreadcount"), outfile)
 }
 \arguments{
 \item{seg}{sequenza segment file}

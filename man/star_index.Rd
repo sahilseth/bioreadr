@@ -7,7 +7,8 @@
 star_index(ref_star = opts_flow$get("ref_star"),
   star_exe = opts_flow$get("star_exe"),
   ref_fasta = opts_flow$get("ref_fasta"),
-  star_cpu = opts_flow$get("star_cpu"), ref_gtf = opts_flow$get("ref_gtf"))
+  star_cpu = opts_flow$get("star_cpu"),
+  ref_gtf = opts_flow$get("ref_gtf"))
 }
 \description{
 a helper function to create a index, incase it does not exits

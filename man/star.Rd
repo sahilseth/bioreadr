@@ -2,7 +2,6 @@
 % Please edit documentation in R/star.R
 \name{star.2.4.2a}
 \alias{star.2.4.2a}
-\alias{star.2.4.2a}
 \alias{star}
 \title{A flowr wrapper for STAR aligner}
 \usage{

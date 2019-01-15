@@ -12,8 +12,8 @@ chipseq(fqs, samplename = "sample_name", out_path,
   scripture_exe = "/rsrch2/genomic_med/krai/apps/scripture/scripture-beta2.jar",
   macs14_exe = "macs14",
   bowtie_index = "/rsrch2/genomic_med/krai/annot/indexes/bowtie/hg19",
-  hg19table = "/rsrch2/genomic_med/krai/annot/hg19.table", chr_prefix = "",
-  peak_fdr = "0.05")
+  hg19table = "/rsrch2/genomic_med/krai/annot/hg19.table",
+  chr_prefix = "", peak_fdr = "0.05")
 }
 \arguments{
 \item{fqs}{a character vector of paths to fastqs for a sample}

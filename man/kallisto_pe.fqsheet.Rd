@@ -2,11 +2,9 @@
 % Please edit documentation in R/kallisto.R
 \name{kallisto_pe.fqsheet}
 \alias{kallisto_pe.fqsheet}
-\title{uses a fqsheet, which need columsn
-- samplename
-- lane
-- num
-- read}
+\title{cd ~/rsrch2_home/ref/human/b37/indexes/kallisto/0.43.0/
+kallisto=/rsrch2/iacs/iacs_dep/sseth/apps/kallisto/0.43.0/kallisto
+$kallisto index -i gencode.v19.pc_transcripts ../../../annotations/gencode/v19/gencode.v19.pc_transcripts.fa}
 \usage{
 kallisto_pe.fqsheet(fqsheet,
   kallisto_exe = "/rsrch2/iacs/apps/conda/3.18.9/bin/kallisto",

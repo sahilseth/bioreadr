@@ -4,9 +4,9 @@
 \alias{create_paired_samplesheet}
 \title{create_paired_samplesheet}
 \usage{
-create_paired_samplesheet(x, fqmat, sampbam, refbam, outfile, db_sampleid = 0,
-  db_refid = 0, out_prefix, bampath, project = "project",
-  subproject = "subproject", normal_bam_01)
+create_paired_samplesheet(x, fqmat, sampbam, refbam, outfile,
+  db_sampleid = 0, db_refid = 0, out_prefix, bampath,
+  project = "project", subproject = "subproject", normal_bam_01)
 }
 \arguments{
 \item{normal_bam_01}{}

@@ -12,8 +12,8 @@ weighted.mean=TRUE; eighted mean, positions with more reads have more weight
     In some case is better with the feature turned off in presence of bias 
     (positions with huge amount of reads)}
 \usage{
-sequenza_r_pipe(seqz, oprefix, odir, is_male = TRUE, chroms = c(1:22, "X"),
-  cores = 10, ....)
+sequenza_r_pipe(seqz, oprefix, odir, is_male = TRUE, chroms = c(1:22,
+  "X"), cores = 10, ....)
 }
 \description{
 N.ratio.filter=10; minimum no of obs, required to consider a segmetn

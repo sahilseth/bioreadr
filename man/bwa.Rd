@@ -13,7 +13,8 @@ bwa(method = c("backtrack", "mem", "aln_sam"), ...)
 
 bwa.backtrack(fqs1, fqs2, paired_end,
   samplename = opts_flow$get("samplename"),
-  bwa_exe = opts_flow$get("bwa_exe"), ref_bwa = opts_flow$get("ref_bwa"),
+  bwa_exe = opts_flow$get("bwa_exe"),
+  ref_bwa = opts_flow$get("ref_bwa"),
   bwa_aln_opts = opts_flow$get("bwa_aln_opts"),
   cpu_bwa_aln = opts_flow$get("cpu_bwa_aln"),
   bwa_sampe_opts = opts_flow$get("bwa_sampe_opts"),
@@ -22,9 +23,10 @@ bwa.backtrack(fqs1, fqs2, paired_end,
 
 bwa.mem(fqs1, fqs2, paired_end = opts_flow$get("paired_end"),
   samplename = opts_flow$get("samplename"),
-  bwa_exe = opts_flow$get("bwa_exe"), ref_bwa = opts_flow$get("ref_bwa"),
+  bwa_exe = opts_flow$get("bwa_exe"),
+  ref_bwa = opts_flow$get("ref_bwa"),
   bwa_mem_opts = opts_flow$get("bwa_mem_opts"),
-  cpu_bwa_mem = opts_flow$get("cpu_bwa_mem"),
+  cpu_bwa_mem = opts_flow$get("bwa_mem.cpu"),
   samtools_exe = opts_flow$get("samtools_exe"), execute = FALSE)
 }
 \arguments{
