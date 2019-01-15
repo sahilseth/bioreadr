@@ -18,4 +18,8 @@
 #' @param df is a output of parse_somatic_vcf
 #'
 to_maf.vcf <- function(df){
+  
+  parse_somatic_vcf
+  
+  
 }

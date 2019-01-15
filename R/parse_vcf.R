@@ -131,8 +131,17 @@ format_vcf_info_ion <- function(x){
 
 
 
-readVCF <- function (vcfName, key = TRUE){
-  vcf <- readLines(vcfName)
+#' adapted from john
+#'
+#' @param vcfName 
+#' @param key 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+.read_vcf <- function (fl, key = TRUE){
+  vcf <- readLines(fl)
   header <- unlist(strsplit(gsub("#", "", vcf[max(grep("#",
                                                        vcf))]), "\t"))
   vcfMat <- do.call("rbind", args = lapply(vcf[-grep("#", vcf)],
@@ -161,7 +170,7 @@ parse_somatic_vcf <- function(x, samp, ref){
   message("Reading file...")
   
   # add a read_vcf function
-  mat = readVCF(x)
+  mat = read_vcf(x)
   mat = tbl_df(as.data.frame(mat,  stringsAsFactors = FALSE))
   colnames(mat) = tolower(colnames(mat))
   ## assume first column
@@ -184,10 +193,81 @@ parse_somatic_vcf <- function(x, samp, ref){
   return(mat)
 }
 
+#' Parse a somatic VCF, with two samples.
+#'
+#' @param x a vcf file
+#' @param samp name of the 'tumor' sample
+#' @param ref name of the 'reference' sample
+#'
+#' @export
+#'
+parse_somatic_vcf.oncotator <- function(x, samp, ref){
+  message("Reading file...")
+  
+  # add a read_vcf function
+  #mat = read_vcf(x)
+  require(dplyr)
+  require(parallel)
+  
+  message("Reading file...")
+  if(tools::file_ext(x) == "gz"){
+    fl_con = gzfile(x)
+  }else{
+    fl_con = file(x)
+  }
+  
+  # assuming that header is not longer than 100
+  hd = scan(fl_con, what = "character", sep = "\n", n = 1000, quiet = TRUE)
+  hd_row = grep("#CHROM", hd)
+  hd = tolower(strsplit(hd[hd_row], "\t")[[1]])
+  col_classes = paste(rep("c", length(hd)), collapse = "")
+  
+  #tab = data.table:::fread(x, data.table = FALSE, header = FALSE, skip = hd_row, sep = "\t", colClasses = "character")
+  tab = readr::read_tsv(x, col_names = FALSE, skip = hd_row, col_types = col_classes)
+  colnames(tab) = gsub("#chrom", "chrom", hd)
+  #tab = tbl_df(tab)
+
+  #mat = tbl_df(as.data.frame(mat,  stringsAsFactors = FALSE))
+  #colnames(mat) = tolower(colnames(mat))
+
+  # assume first column is tumor
+  samp1 = colnames(tab)[grep("format", colnames(tab)) + 1]
+  # assume 2nd column in normal
+  samp2 = colnames(tab)[grep("format", colnames(tab)) + 2]
+  message("samp1: ", samp1, " samp2: ", samp2)
+  
+  message("Parsing format columns...")
+  s1cols = splt_vcf_format(x = tab[,samp1], format = tab$format, prefix = "s1_")
+  s2cols = splt_vcf_format(x = tab[,samp2], format = tab$format, prefix = "s2_")
+  
+  message("Parsing info columns...")
+  infocols = splt_vcf_info(tab$info)
+  
+  #message("Parsing func...")
+  #funccols = splt_vcf_func(mat$func)
+  #infocols[1:100,] %>% View()
+  tab$samp1 = samp1
+  tab$samp2 = samp2
+  
+  colsel = !colnames(tab) %in% c("format", samp1, samp2, "info")
+  
+  message("Assembling data")
+  #mat = tbl_df(cbind(mat[, colsel], tcols, ncols, infocols, funccols))
+  tab = tbl_df(cbind(tab[, colsel], s1cols, s2cols, infocols))
+  
+  tab = clean_names(tab)
+  return(tab)
+}
+
 if(FALSE){
   
   source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/parse_vcfs.R')
   x='/rsrch2/iacs/iacs_dep/sseth/flowr/runs/flowr_test/fastq_haplotyper-MS132-20150824-16-37-58-XScJT0OZ/tmp/GLizee-Pancreatic-MS132-MP013normalDNA.recalibed_1.haplotyper.vcf'
   x2 = parse_vcf(x)
+  
+  x='~/rsrch1_data/runs/sarcomatoid/jco/mutect/sarco10-T_1208XX_ST1374_073_H09WGADXX___sarco10-N_1208XX_ST1374_073_H09WGADXX_filt2_onco.vcf'
+  x2 = parse_somatic_vcf(x)
+  
+  
   
 }
