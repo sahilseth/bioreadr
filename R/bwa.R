@@ -161,15 +161,18 @@ bwa.backtrack <- function(
 }
 
 get_rg <- function(samplename = opts_flow$get("samplename"), 
-                   seq_platform = opts_flow$get("rg_platform"), 
+                   platform = opts_flow$get("rg_platform"), 
                    center = opts_flow$get("rg_center"),
-                   lane = opts_flow$get("rg_center")){
+                   lane = opts_flow$get("rg_lane")){
+  
+  # https://gatkforums.broadinstitute.org/gatk/discussion/6472/read-groups
+  # good thing for id: flowcell_lane_index: unique throught the world!
   rgid = rglb = rgsm = samplename
   #rgpu = lane;
   #"@RG     ID:TCGA-A6-6141-01A     LB:TCGA-A6-6141-01A     PL:illumina     SM:TCGA-A6-6141-01A     PU:lane1        CN:MDA"
   # rg = sprintf("'@RG\tID:%s\tLB:%s\tSM:%s\tPL:%s\tPU:%s\tCN:%s'", 
   #              rgid, rglb, rgsm, rgpu, cn)
-  rg = glue("'@RG\\tID:{rgid}\\tLB:{rglb}\\tSM:{rgsm}\\tPL:%s\\tPU:{lane}\\tCN:{center}'")
+  rg = glue("'@RG\\tID:{rgid}\\tLB:{rglb}\\tSM:{rgsm}\\tPL:{platform}\\tPU:{lane}\\tCN:{center}'")
 
   return(rg)
   
@@ -211,7 +214,7 @@ bwa.mem <- function(fqs1,
   rgtag = get_rg(samplename)
   bwa_mem_opts = paste0(bwa_mem_opts, " -R ", rgtag)
   
-  
+  # GATK pipe: "bwa mem -K 100000000 -p -v 3 -t 16 -Y $bash_ref_fasta",
   if(!missing(fqs2)){
     cmd_mem <- sprintf("%s mem %s -t %s %s %s %s | %s sort -@ %s -o %s -",
                        bwa_exe, bwa_mem_opts, cpu_bwa_mem, ref_bwa, fqs1, fqs2, samtools_exe, cpu_bwa_mem, bam_files)

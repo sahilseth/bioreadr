@@ -107,7 +107,7 @@ preprocess.gatk_v2 <- function(bam,
 ){
   
   check_args(ignore = "outfile")
-  
+  source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/bam_set.R')
   bamset = bam_set(bam = bam, outfile = outfile, ref_fasta_path = ref_fasta_path, split_by_chr = split_by_chr)
   
   # get the name of the function
@@ -256,7 +256,7 @@ preprocess.gatk_v4 <- function(bam,
                                # dedup
                                #cpu_markdup = 1,
                                markdup_mem = opts_flow$get("gatk4_markdup.mem"),
-                               markdup_opts = opts_flow$get('gatk4_picard_dedup_opts'),
+                               markdup_opts = opts_flow$get('gatk4_picard_markdup_opts'),
                                
                                ## scatter 8 per node nct=8
                                #cpu_baserecalib = opts_flow$get("gatk4_baserecalib.cpu"),
@@ -267,8 +267,9 @@ preprocess.gatk_v4 <- function(bam,
 ){
   
   check_args(ignore = "outfile")
-  
-  bamset = ultraseq:::bam_set(bam = bam, ref_fasta = ref_fasta, split_by_chr = split_by_chr)
+
+  source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/bam_set.R')
+  bamset = bam_set(bam = bam, outfile = outfile, ref_fasta_path = ref_fasta, split_by_chr = split_by_chr)
   
   # get the name of the function
   pipename = match.call()[[1]]
@@ -287,7 +288,7 @@ preprocess.gatk_v4 <- function(bam,
   #user-specified covariates (such as read group, reported quality score, machine cycle, and nucleotide context).
   #Version:4.0.10.1
   # explicity define intervals here as well, though not required.
-  bqsr_reports <- paste0(bamset$out_prefix_chr, ".recal_data.csv")
+  bqsr_reports <- paste0(bamset$out_prefix_interval, ".recal_data.table")
   gatk_intervals = bamset$gatk_intervals
   cmd_baserecalib <- glue("{java_exe} {gatk_opts} {java_mem} -jar {gatk_jar} BaseRecalibrator -R {ref_fasta} ", 
                           "-I {dedupbam} -O {bqsr_reports} ",
@@ -301,7 +302,7 @@ preprocess.gatk_v4 <- function(bam,
   # -L ${sep=" -L " sequence_group_interval}
   
   bqsr_reports_i <- paste0(bqsr_reports, collapse = " -I ");bqsr_reports_i
-  bqsr_report_o = paste0(bamset$out_prefix, ".recal_data.csv")
+  bqsr_report_o = paste0(bamset$out_prefix, ".recal_data.table")
   cmd_bqsr_reports <- glue("{java_exe} {gatk_opts} {java_mem} -jar {gatk_jar} GatherBQSRReports ", 
                            "-I {bqsr_reports_i} -O {bqsr_report_o}")
   cmd_bqsr_reports
@@ -309,8 +310,8 @@ preprocess.gatk_v4 <- function(bam,
   # GatherBQSRReports \
   # -I ${sep=' -I ' input_bqsr_reports} \
   # -O ${output_report_filename}
-  
-  recalibbams <- paste0(bamset$out_prefix_chr, ".duplicates_marked.recalibrated.bam")
+  # This tool performs the second pass in a two-stage process called Base Quality Score Recalibration (BQSR). Specifically, it recalibrates the base qualities of the input reads based on the recalibration table produced by the BaseRecalibrator tool, and outputs a recalibrated BAM or CRAM file
+  recalibbams <- paste0(bamset$out_prefix_interval, ".duplicates_marked.recalibrated.bam")
   cmd_apply_bqsr <- glue("{java_exe} {gatk_opts} {java_mem} -jar {gatk_jar} ApplyBQSR ", 
                          "-R {ref_fasta} -I {dedupbam} -O {recalibbams} ",
                          "{gatk_intervals} -bqsr {bqsr_reports} ",
@@ -328,6 +329,7 @@ preprocess.gatk_v4 <- function(bam,
   # --create-output-bam-md5 --use-original-qualities
   # }
   
+  # ** gather bams ----
   recalibbams_i = paste0(recalibbams, collapse = " -I ");recalibbams_i
   recalibbam_o = paste0(bamset$out_prefix, ".duplicates_marked.recalibrated.bam");recalibbam_o
   cmd_gather_bams <- glue("{java_exe} {gatk_opts} {java_mem} -jar {gatk_jar} GatherBamFiles ", 
@@ -343,7 +345,7 @@ preprocess.gatk_v4 <- function(bam,
   # }
   
   # cleanup job
-  fls_rm = c(recalibbams, bqsr_reports)
+  #fls_rm = c(recalibbams, bqsr_reports)
   
   # merge parallel jobs
   cmd_baserecalib[1];cmd_apply_bqsr[1]
@@ -364,7 +366,7 @@ preprocess.gatk_v4 <- function(bam,
                dedupbam = dedupbam,
                bqsr_report = bqsr_report_o,
                recalibbam = recalibbam_o,
-               recalibbam_o = gsub(".bam", ".bai", recalibbam_o)
+               recalibbai = gsub(".bam", ".bai", recalibbam_o)
              ))
   return(ret)
 }
@@ -420,67 +422,3 @@ preprocess.gatk_v4 <- function(bam,
 # }
 
 
-#' Read the associated dictionary file and return a list of chromosome names
-#'
-#' @param fa a reference genome fasta file
-#' @param length provide length of each chromosome as well [FALSE]
-#'
-#' @export
-#'
-#' @importFrom params read_sheet
-#' @importFrom tools file_path_sans_ext
-#'
-get_fasta_chrs <- function(fa = opts_flow$get("ref_fasta_path"),
-                           length = FALSE){
-  check_args()
-  
-  #dict = gsub("fasta$", "dict", x)
-  dict = paste0(file_path_sans_ext(fa), ".dict")
-  
-  # use default chrs if they are already set
-  if(!is.null(opts_flow$get("ref_fasta_chrs")))
-    return(list(chrs = opts_flow$get("ref_fasta_chrs"), lens = NA))
-  
-  if(!file.exists(dict)){
-    message(c("We need a dictionary (extension: .dict) for the reference fasta file to proceed. ",
-              "Follow this link to learn more: http://lmgtfy.com/?q=create+dict+fasta"))
-    warning("By default using hg19 chrs.")
-    chrs = c(1:22,"X","Y","MT")
-    lens = rep(NA, length(chrs))
-    
-  }else{
-    seqs = read_sheet(dict, ext = "tsv", skip = 1, header = FALSE)
-    chrs = gsub("SN:", "", seqs[, 2], fixed = TRUE)
-    lens = gsub("LN:", "", seqs[, 3], fixed = TRUE)
-    # 
-    # if(length)
-    #   return(list(chrs = chrs, lens = lens))
-  }
-  
-  return(list(chrs = chrs, lens = lens))
-}
-
-# using samtools
-.get_bam_chrs <- function(bam, samtools_exe = "samtools") {
-  cmd <- sprintf("%s view -H %s | grep  '\\@SQ' | cut -f 2,3",
-                 samtools_exe, bam)
-  chrs_info <- system(cmd, intern = TRUE)
-  chrs_info <- do.call(rbind, lapply(chrs_info, function(x){
-    y = strsplit(x, "\t|:")[[1]]
-    y[c(2,4)]
-  }))
-  return (chrs_info)
-}
-
-# using Rsamtools
-#' @import Rsamtools
-get_bam_chrs <- function(x){
-  if(file.exists(x)){
-    out = Rsamtools::scanBamHeader(x)
-    chrs = names(out[[1]]$targets)
-  }else{
-    message("bam does not exists, returning hg19 chrs")
-    chrs = c(1:22,"X","Y","MT")
-  }
-  return(chrs)
-}

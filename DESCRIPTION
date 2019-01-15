@@ -13,11 +13,12 @@ Depends:
 Imports:
     params,
     RCurl,
-    curl
+    curl,
+    glue
 Suggests:
     Rsamtools
 Description: Provides a host of modules and pipelines supporting a host of
     genomics data ranging from whole genome/exome sequencing, RNA-Seq and chipseq
     etc.
 License: GPL
-RoxygenNote: 6.0.1
+RoxygenNote: 6.1.0
