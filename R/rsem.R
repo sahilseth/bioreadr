@@ -24,7 +24,7 @@
 # mouse ref:
 # ref="/scratch/rists/hpcapps/reference/mouse/mm10/indexes/rsem/1.2.12bowtie2/mm10.refgenes"
 
-rsem_pe <- function(fq1, fq2, samplename,
+rsem_star_pe <- function(fq1, fq2, samplename,
                     
                     out_prefix,
                     #rsem_exp_exe = "/scratch/rists/hpcapps/x86_64/rsem/1.2.12/rsem-calculate-expression", 
@@ -76,4 +76,8 @@ read_rsem <- function(x, reader = read_tsv, ...){
            gene_fpkm = sum(fpkm))
   df
 }
+
+
+
+
 
