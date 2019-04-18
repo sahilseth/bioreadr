@@ -24,8 +24,9 @@
 # phased variants -------
 # https://pvactools.readthedocs.io/en/latest/pvacseq/input_file_prep/proximal_vcf.html
 # Update sample names
-# The sample names in the tumor.bam, the somatic.vcf, and the germline.vcf need to match. If they don’t you need to edit the sample names in the VCF files to match the tumor BAM file.
-# 
+# The sample names in the tumor.bam, the somatic.vcf, and the germline.vcf need to match. 
+# If they don’t you need to edit the sample names in the VCF files to match the tumor BAM file.
+ 
 # Combine somatic and germline variants using GATK’s CombineVariants
 # /usr/bin/java -Xmx16g -jar /opt/GenomeAnalysisTK.jar \
 # -T CombineVariants \
@@ -39,7 +40,7 @@
 # I=combined_somatic_plus_germline.vcf \
 # O=combined_somatic_plus_germline.sorted.vcf \
 # SEQUENCE_DICTIONARY=reference.dict
-# Phase variants using GATK’s ReadBackedPhasing
+# Phase variants using GATKs ReadBackedPhasing
 # /usr/bin/java -Xmx16g -jar /opt/GenomeAnalysisTK.jar \
 # -T ReadBackedPhasing \
 # -R reference.fa \
@@ -61,25 +62,46 @@
 
 
 
+#' @name pvacseq
+#'
+#' @param input_vcf input_vcf
+#' @param samplename something
+#' @param hla_alleles  something
+#' @param mhc_tools something
+#' @param pvacseq_opts something
+#' @param odir something
+#' @param pvacseq_setup something
+#' 
+#' @details Still only works on einstein
+#'
+#' @export
 pvacseq <- function(
   input_vcf,
+  hla_fl,
+  #hla_alleles = "HLA-A*02:01,HLA-B*35:01,DRB1*11:01",
   samplename,
-  hla_alleles = "HLA-A*02:01,HLA-B*35:01,DRB1*11:01",
-  mhc_tools = "MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign",
+  
+  pvacseq_mhc_tools = "MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign",
+  # ;source activate pvactools;export KERAS_BACKEND=tensorflow
+  pvacseq_setup = "module load pvactools/1.1.5",
   pvacseq_opts = "-e 8,9,10",
-  odir = "pvacseq",
   
-  pvacseq_setup = "module load conda_/3.6;source activate pvactools;export KERAS_BACKEND=tensorflow"
-  
+  iedb_dir = "/home/sseth/apps/iedb"
   
 ){
   
-  #hla_alleles = 
-  #mhc_tools = "MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign"
-  cmd_pvacseq1 = glue("{pvactools_setup}")
-  cmd_pvacseq2 = glue("{pvacseq_py} run {input_vcf} {samplename} {hla_alleles} {mhc_tools} odir {pvacseq_opts}")
+  # pvacseq run ${ann_vcf} "1004-t" $(cat WEX-1004-N_nochr_hla_umap_hla_pvac.txt) ${mhc_tools} pvacseq -e 8,9,10 --iedb-install-directory $iedb_dir
+  cmd_pvacseq = glue("{pvacseq_setup};",
+                     "pvacseq run {input_vcf} {samplename} $(cat {hla_fl}) {pvacseq_mhc_tools} pvacseq {pvacseq_opts} ",
+                     "--iedb-install-directory {iedb_dir}")
   
+  flowmat = to_flowmat(list(cmd_pvacseq = cmd_pvacseq), samplename)
   
+  outfiles = list(epitopes_all = glue("pvacseq/MHC_Class_I/{samplename}.all_epitopes.tsv"),
+                  epitopes_filt = glue("pvacseq/MHC_Class_I/{samplename}.filtered.tsv"),
+                  epitopes_rnk = glue("pvacseq/MHC_Class_I/{samplename}.filtered.condensed.ranked.tsv"))
+  
+  list(flowmat = flowmat, outfiles = outfiles)
 }
 
 read_pvacseq <- function(x){

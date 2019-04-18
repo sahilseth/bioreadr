@@ -58,14 +58,16 @@ run_blast_fasta_pam <- function(fa, blast_db, cores = 20, out_prefix){
 
 
 # -------- shRNA annotation functions -------- #
-# this function is for shRNA
-#' Title
+
+
+#' @name run_blast_map_seq
+#' 
+#' @description for shRNA
 #'
 #' @param mp mapping file with columns: antisense_seq sense_seq
-#' @param blast_db 
-#' @param out_prefix 
-#' @param do_revcomp 
-#'
+#' @param blast_db blast_db
+#' @param out_prefix out_prefix 
+#' @param do_revcomp do_revcomp
 run_blast_map_seq <- function(mp, 
                               blast_db = "/rsrch2/iacs/iacs_dep/sseth/ref/human/annotations/gencode/v19/gencode.v19.pc_transcripts.fa", 
                               out_prefix, 
@@ -127,9 +129,9 @@ read_fa_hdr <- function(){
 }
 
 
-#' Split DNA sequences into smaller files.
-#'
-#' Given a vector of sequences or DNAStringSet or a FASTA filename, the function 
+#' @name splitSeqsToFiles
+#' 
+#' @description Split DNA sequences into smaller files. Given a vector of sequences or DNAStringSet or a FASTA filename, the function 
 #' splits it into smaller pieces as denoted by totalFiles parameter.
 #'
 #' @param x a DNAStringSet object, or a FASTA filename.
@@ -145,10 +147,11 @@ read_fa_hdr <- function(){
 #'
 #' @export
 #'
-#' @examples
+#' @examples{
 #' seqs <- DNAStringSet(sapply(sample(c(100:1000), 500),
 #' function(size) paste(sample(DNA_BASES, size, replace = TRUE), collapse = ""))) 
 #' splitSeqsToFiles(seqs, 5, "tempyQ", "myDNAseqs.fa", tempdir())
+#' }
 splitSeqsToFiles <- function(x, totalFiles = 4, suffix = "tempy",
                              filename = "queryFile.fa", outDir = getwd()) {
   if(is.atomic(x)) {

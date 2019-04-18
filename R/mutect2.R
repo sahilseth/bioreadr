@@ -1,5 +1,31 @@
 
 
+# gatk 4.1.1.0 --------
+# Mutect2
+# 
+# Overhaul of FilterMutectCalls, which now applies a single threshold to an overall error probability (#5688)
+# FilterMutectCalls automatically determines the optimal threshold.
+# The new somatic clustering model learns tumors' allele fraction spectra and overall SNV and indel mutation rates in order to improve filtering.
+# Includes a rewrite of Mutect2 documentation -- better organization and now includes command line examples in addition to math.
+# Mutect2 now modifies base and indel qualities of overlapping paired reads to account for PCR error rather than discarding reads (#5794)
+# This especially improves indel sensitivity.
+# Optimized Mutect2 read orientation filtering by collecting F1R2 counts from within Mutect2 itself, greatly reducing wall-clock and CPU time (#5840)
+# New Mutect2 panel of normals workflow using GenomicsDB for scalability (#5675)
+# Panel of normals removes germline variants in order to contain only technical artifacts, and contains information about artifact prevalence
+# Rewrote Mutect2 active region likelihood as special case of full somatic likelihoods model, which reduces runtime by 5% (#5814)
+# Funcotator updates in Mutect2 WDL (#5742) (#5735)
+# Prune assemby graph before checking for cycles (#5562)
+# Refactor Mutect2 inheritance so that it doesn't have inactive arguments (#5758)
+# Added CRAM support to the Mutect2 WDL (#5668)
+# Split MNPs in Mutect2 PON WDL, fixing a potential bug (#5706)
+# Handle negative infinity log likelihoods from PairHMM in Mutect2 (#5736)
+# Fixed overfiltering in Mutect2 in GGA alleles mode with no reads (#5743)
+# Correct some Mutect2 VCF header lines (#5792)
+# Handle unmarked duplicates with mate MQ = 0 in Mutect2 (#5734)
+# Output sample names in Mutect2 PON header (#5733)
+# Avoid error due to finite precision error in Mutect2 PON creation (#5797)
+# Update Mutect2 javadoc to reflect v4.1 changes. (#5769)
+# Renamed the OxoGReadCounts annotation to OrientationBiasReadCounts (#5840)
 
 
 
@@ -84,26 +110,23 @@
 #' Next steps	NO	No need since subsequent steps operate on the callset, which was restricted to the exome at the calling step.
 
 
-#' A wrapper around somatic mutation caller MuTect
-#'
-#' This generates a set of commandlines, per chromosome
+#' @name mutect2.gatk4
 #' 
+#' 
+#' @description A wrapper around somatic mutation caller MuTect
+#'This generates a set of commandlines, per chromosome
 #' following this: 
 #' https://software.broadinstitute.org/gatk/documentation/article?id=11136
 #' https://gatkforums.broadinstitute.org/gatk/discussion/11127
-#' 
 #' param details:
 #' https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_walkers_mutect_Mutect2.php
 #'
 #' @param tumor_bam path to a tumor bam file
 #' @param normal_bam path to a normal bam file
 #' @param samplename name of the sample, to be added to the flowmat
-#' @param out_prefix output file name [optional].
-#' By default, this is created using names of tumor and normal bam files.
-#' @param is_merged specify if the input bam is already split by chromosomes (FALSE) 
-#' or is a merged file with all chromosome (TRUE). [FALSE]
-#' @param split_by_chr fork running mutect by chromosome to make it faster [TRUE].
-#' Turning is option OFF is not fully supported.
+#' @param out_prefix output file name [optional]. By default, this is created using names of tumor and normal bam files.
+#' @param is_merged specify if the input bam is already split by chromosomes (FALSE) or is a merged file with all chromosome (TRUE). [FALSE]
+#' @param split_by_chr fork running mutect by chromosome to make it faster [TRUE]. Turning is option OFF is not fully supported.
 #' @param java_exe path to java's executable [java]
 #' @param java_tmp path to a temp folder to be used by java
 #' @param mutect_jar path to mutect's jar file
@@ -192,7 +215,6 @@ mutect2.gatk4 <- function(
   mutect_vcfs_i = paste0(mutect_vcfs, collapse = " -I ")
   cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} MergeVcfs -I {mutect_vcfs_i} -O {mutect_vcf} ")
   # ** gather bams ----
-  cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} MergeVcfs -I {mutect_vcfs_i} -O {mutect_vcf} ")
   mutect_bams_i = paste0(mutect_bams, collapse = " -I ");
   mutect_bam_o = paste0(bamset$out_prefix, "_mutect.bam")
   cmd_mutect_gather_bams <- glue("{gatk4_exe} --java-options {java_mem} GatherBamFiles ", 

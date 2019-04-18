@@ -11,11 +11,12 @@
 #'
 #' @param bams a vectors of files to merge
 #' @param outfile name of the merged bam file
-#' @param samplename 
+#' @param samplename something
 #' @param java_exe path to java
+#' @param gatk4_jar something
+#' @param gatk4_opts something
+#' @param mergesam_opts something
 #' @param java_mem java memory
-#' @param java_tmp
-#' @param picard_jar
 #'
 #' @export
 #' 

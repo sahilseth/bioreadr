@@ -1,7 +1,9 @@
-#' @title read_paired_samplesheet
+#' @name read_paired_samplesheet
+#' 
 #' @description read_paired_samplesheet
-#' @param x
-#' @param ...
+#'
+#' @param x x
+#' @param ... ignored
 #' 
 #' @export
 #' 
@@ -22,13 +24,41 @@ read_paired_samplesheet <- function(x, ...){
     return(list(single_mat=single_mat, paired_mat=mat))
 }
 
+read_paired_bam_trk <- function(trk, test_file_exists = T){
+  
+  pacman::p_load(testit, magrittr)
+  
+  if(!is.data.frame(trk))
+    trk = readr::read_tsv(trk) %>% data.frame(stringsAsFactors = F)
+  
+  # TESTS --------
+  # make sure trk has the reqd columns
+  cols_df = colnames(df_paired_bam)
+  cols_reqd = c("patient_id", "samp1_bam", "samp2_bam", "samp1", "samp2", "pairnm")
+  # testthat::expect_(cols_expected %in% colnames(trk))
+  testit::assert("we have reqd columns in trk", {
+    cols_reqd %in% cols_df
+  })
+  
+  # make sure files exist
+  bams = c(trk$samp1_bam, trk$samp2_bam)
+  bais = gsub(".bam$", ".bam.bai", bams)
+  
+  if(test_file_exists)
+    testit::assert("check if all files exists", {
+      file.exists(bams) &
+        file.exists(bais)
+    })
+  trk
+}
+
 ## x is a object from seqan_tooling
-#' @title create_tooling_paired_samplesheet
+#' @name create_tooling_paired_samplesheet
 #' @description create_tooling_paired_samplesheet
-#' @param x
-#' @param outfile
-#' @param tumor.only
-#' @param normal.only
+#' @param x x
+#' @param outfile outfile
+#' @param tumor.only tumor.only
+#' @param normal.only normal.only
 #' 
 #' @export
 #' 
@@ -49,19 +79,20 @@ create_tooling_paired_samplesheet <- function(x, outfile, tumor.only=FALSE, norm
 
 ## x is a matrix with two columns sampname refname
 ## refname can be common_normal_01
-#' @title create_paired_samplesheet
+
+#' @name create_paired_samplesheet
 #' @description create_paired_samplesheet
-#' @param x
-#' @param fqmat
-#' @param sampbam
-#' @param refbam
-#' @param outfile
-#' @param db_sampleid
-#' @param db_refid
-#' @param out_prefix
-#' @param bampath
-#' @param project
-#' @param normal_bam_01
+#' @param x x
+#' @param fqmat fqmat
+#' @param sampbam sampbam
+#' @param refbam refbam
+#' @param outfile outfile
+#' @param db_sampleid db_sampleid
+#' @param db_refid db_refid
+#' @param out_prefix out_prefix
+#' @param bampath bampath
+#' @param project project
+#' @param normal_bam_01 normal_bam_01
 #' 
 #' @importFrom tools file_path_sans_ext
 #' 

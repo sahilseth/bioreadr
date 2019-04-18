@@ -55,10 +55,13 @@
 #' @details follow this link for more details:
 #' 
 #' http://nagasakilab.csml.org/hla/
+#' 
+#' @export
 #'
-hlavbseq <- function(bam, samplename,
+hlavbseq <- function(bam, 
+                     samplename,
                      region = "6:29690552-33111102", 
-                     paired = TRUE,
+                     paired_end = TRUE,
                      
                      bwa_exe = opts_flow$get("bwa_exe"),
                      
@@ -71,28 +74,28 @@ hlavbseq <- function(bam, samplename,
                      
                      hla_call_digits_opts = opts_flow$get("hla_call_digits_opts")
                      
-                     ){
+){
   
   # get FQs
   out_hla_fq = hla_fqs(bam = bam, samplename = samplename, region = region)
-  fqs = out_hla_fq$outfiles;fq1=fqs[1];fq2=fqs[2];fq3=fqs[3]
+  fqs = out_hla_fq$outfiles;fq1=fqs$fq1;fq2=fqs$fq2;fq3=fqs$fq3
   
   # fl nms
   bamnm = basename(bam)
-  samnm = gsub("_1.fq", ".sam", fqs[1]);samnm
-  hlavb_out_fl = gsub("_1.fq", "_hlavb_out.txt", fqs[1]);hlavb_fl
-  hlavb_d4_fl = gsub("_1.fq", "_hlavb_d4.txt", fqs[1]);hlavb_d4_fl
-  hla_pvacseq_fl = gsub("_1.fq", "_hla_pvac.txt", fqs[1]);hla_pvacseq_fl
+  samnm = gsub("_1.fq", ".sam", fq1);samnm
+  hlavb_out_fl = gsub("_1.fq", "_hlavb_out.txt", fq1);hlavb_out_fl
+  hlavb_d4_fl = gsub("_1.fq", "_hlavb_d4.txt", fq1);hlavb_d4_fl
+  hla_pvacseq_fl = gsub("_1.fq", "_hla_pvac.txt", fq1);hla_pvacseq_fl
   
   # aln
-  if(paired){
+  if(paired_end){
     cmd_hla_align = glue("{bwa_exe} mem -t 8 -P -L 10000 -a {hla_all_fa} {fq1} {fq2} > {samnm}")
   }else{
     cmd_hla_align = glue("{bwa_exe} mem -t 8 -P -L 10000 -a {hla_all_fa} {fq3} > {samnm}")
   };cmd_hla_align
   
   # hlavbseq
-  if(paired){
+  if(paired_end){
     # For paired-end read data:
     cmd_hlavbseq = glue("{java_exe} -jar {hlavbseq_jar} {hla_all_fa} {samnm} {hlavb_out_fl} --alpha_zero 0.01 --is_paired")
   }else{
@@ -101,29 +104,34 @@ hlavbseq <- function(bam, samplename,
   };cmd_hlavbseq
   
   # call digits
-  # -v xxxxx_result.txt : Need to set the output file from the HLA-VBSeq
-  # -a Allelelist.txt : IMGT HLA Allelelist
-  # -r 90 : mean single read length (mean_rlen)
-  # -d 4 : HLA call resolution�i4 or 6 or 8�j
-  # --ispaired : if set, twice the mean rlen for depth calculation (need to specify when the sequenced data is paired-end protocol)
-  if(paired){
+  # v xxxxx_result.txt : Need to set the output file from the HLA-VBSeq
+  # a Allelelist.txt : IMGT HLA Allelelist
+  # r 90 : mean single read length (mean_rlen)
+  # d 4 : HLA call resolution i4 or 6 or 8
+  # ispaired : if set, twice the mean rlen for depth calculation (need to specify when the sequenced data is paired-end protocol)
+  if(paired_end){
     cmd_hla_call_digits = glue("{hlavbseq_call_hla_digits_py} -v {hlavb_out_fl} -a {hla_allele_list} {hla_call_digits_opts} --ispaired > {hlavb_d4_fl}")
   }else{
     cmd_hla_call_digits = glue("{hlavbseq_call_hla_digits_py} -v {hlavb_out_fl} -a {hla_allele_list} {hla_call_digits_opts} > {hlavb_d4_fl}")
   };cmd_hla_call_digits
   
   #to_hla_pvacseq.hlavbseq(hlavb_d4_fl, hla_pvacseq_fl)
-  cmd = glue("funr my.ultraseq::to_hla_pvacseq.hlavbseq x={hlavb_d4_fl} hla_fl={hla_pvacseq_fl}")
+  cmd_hla_pvac = glue("funr my.ultraseq::to_hla_pvacseq.hlavbseq x={hlavb_d4_fl} hla_fl={hla_pvacseq_fl}")
   
   cmds = list(cmd_hla = paste(out_hla_fq$flowmat$cmd, 
-                               cmd_hla_align,
-                               cmd_hlavbseq,
-                               cmd_hla_call_digits, sep = "\n"))
+                              cmd_hla_align,
+                              cmd_hlavbseq,
+                              cmd_hla_pvac,
+                              cmd_hla_call_digits, sep = "\n"))
   
   
   flowmat = to_flowmat(cmds, samplename)
   
-  list(flowmat = flowmat, outfiles = c(hlavb_d4_fl = hlavb_d4_fl, hlavb_out_fl = hlavb_out_fl))
+  list(flowmat = flowmat, 
+       # returning these as a list if perfect for things downstream. 
+       # combining them becomes easy as well
+       outfiles = list(hlavb_d4_fl = hlavb_d4_fl, hlavb_out_fl = hlavb_out_fl, 
+                       hla_pvacseq_fl = hla_pvacseq_fl))
 }
 
 # call digits -----
@@ -175,7 +183,7 @@ hla_fqs <- function(bam, samplename,
                     picard_jar = opts_flow$get("picard_jar"),
                     
                     execute = TRUE # not used
-                    ){
+){
   
   bamnm = basename(bam)
   bam_hla = gsub(".bam$", "_hla.bam", bamnm)
@@ -199,32 +207,34 @@ hla_fqs <- function(bam, samplename,
   
   # get fqs
   cmd_fq1 <- glue("{java_exe} {java_mem} -jar {picard_jar} SamToFastq INPUT={bam_hla} ", 
-  "FASTQ={fq_hla_1} SECOND_END_FASTQ={fq_hla_2} UNPAIRED_FASTQ={fq_hla_3}")
+                  "FASTQ={fq_hla_1} SECOND_END_FASTQ={fq_hla_2} UNPAIRED_FASTQ={fq_hla_3}")
   cmd_fq2 <- glue("{java_exe} {java_mem} -jar {picard_jar} SamToFastq INPUT={bam_umap} ", 
-  "FASTQ={fq_umap_1} SECOND_END_FASTQ={fq_umap_2} UNPAIRED_FASTQ={fq_umap_3}")
+                  "FASTQ={fq_umap_1} SECOND_END_FASTQ={fq_umap_2} UNPAIRED_FASTQ={fq_umap_3}")
   
   cmd_fq = glue("cat {fq_hla_1} {fq_umap_1} > {fq1};", 
                 "cat {fq_hla_2} {fq_umap_2} > {fq2};",
                 "cat {fq_hla_3} {fq_umap_3} > {fq3};")
-
+  
   cmds = list(cmd_hla_fq = glue("{cmd_bam1}\n{cmd_bam2}\n{cmd_fq1}\n{cmd_fq2}\n{cmd_fq}"))
   flowmat = to_flowmat(cmds, samplename)
   
-  list(flowmat = flowmat, outfiles = c(fq1, fq2, fq3))
+  list(flowmat = flowmat, outfiles = list(fq1 = fq1, fq2 = fq2, fq3 = fq3))
 }
 
 
 #' to_hla_pvacseq.hlavbseq
 #'
-#' @param x 
+#' @param x d4 file
 #' @param hla_fl 
 #'
 #' @export
-to_hla_pvacseq.hlavbseq <- function(x, hla_fl){
-  p_load(janitor, readr, dplyr)
+to_hla_pvacseq.hlavbseq <- function(x, 
+                                    hla_fl, 
+                                    allele_db_fl = "~/.rsrch2/iacs/iacs_dep/sseth/ref/human/b37/annotations/hlavbseq/all_alleles.txt"){
+  pacman::p_load(janitor, readr, dplyr)
   # x="WEX-1004-N_nochr_hla_umap_hlavb_d4.txt"
-  #hla_nethmc_db = read_tsv("nethmc_alleles.txt", col_names = "gene")$gene
-  hla_db = read_tsv("all_alleles.txt", col_names = "gene")$gene
+  # hla_nethmc_db = read_tsv("nethmc_alleles.txt", col_names = "gene")$gene
+  hla_db = read_tsv(allele_db_fl, col_names = "gene")$gene
   
   df_hla = read_tsv(x) %>% clean_names()
   
@@ -235,7 +245,7 @@ to_hla_pvacseq.hlavbseq <- function(x, hla_fl){
     select(allele1, allele2) %>% unlist() %>% 
     paste(collapse = ",")
   #hla_abc %in% hla_db
-
+  
   cat(hla_abc, file = hla_fl)
   
 }

@@ -1,4 +1,10 @@
 
+# INSTALL -------
+
+# module load conda_/3.6
+# conda install -c bioconda bam-readcount 
+# 
+
 
 
 # Usage: bam-readcount [OPTIONS] <bam_file> [region]
@@ -36,14 +42,14 @@
 
 #' Run BAM readcount
 #'
-#' @param bam 
-#' @param bed 
-#' @param bamreadcount_exe 
+#' @param bam something
+#' @param bed something
+#' @param bamreadcount_exe something
+#' @param samplename something
+#' @param outfile something
+#' @param fa_fl something
 #'
-#' @return
 #' @export
-#'
-#' @examples
 bam_readcount <- function(bam, 
                           samplename,
                           bed,
@@ -53,27 +59,25 @@ bam_readcount <- function(bam,
   
   
   # bam-readcount [OPTIONS] <bam_file> [region]
-  cmd = glue("{bamreadcount_exe} -l {bed} -f {fa_fl} {bam} > {outfile}")
+  # -l [ --site-list ] arg                file containing a list of regions to
+  # report readcounts within
+  # The list of regions should be formatted as chromosome start and end. 
+  # Each field should be tab separated and coordinates should be 1-based.
+  cmd = glue("{bamreadcount_exe} -l {bed} -f {fa_fl} {bam} > {outfile}") %>% as.character()
   
   #system(cmd)
   flowmat = to_flowmat(list(bamreadcount = cmd), samplename = samplename)
   
   ret = list(flowmat = flowmat)
   return(ret)
-  
-  
-  
 }
 
 
-#' Title
+#' parseline
 #'
-#' @param x 
+#' @param x something
 #'
-#' @return
 #' @export
-#'
-#' @examples
 bam_readcount.parseline <- function(x){
   cols = "base:count:avg_mapping_quality:avg_basequality:avg_se_mapping_quality:num_plus_strand:num_minus_strand:avg_pos_as_fraction:avg_num_mismatches_as_fraction:avg_sum_mismatch_qualities:num_q2_containing_reads:avg_distance_to_q2_start_in_q2_reads:avg_clipped_length:avg_distance_to_effective_3p_end"
   cols = strsplit(cols, ":")[[1]]
@@ -99,6 +103,13 @@ bam_readcount.parseline <- function(x){
 # chr	position	reference_base	depth	base:count:avg_mapping_quality:avg_basequality:avg_se_mapping_quality:num_plus_strand:num_minus_strand:avg_pos_as_fraction:avg_num_mismatches_as_fraction:avg_sum_mismatch_qualities:num_q2_containing_reads:avg_distance_to_q2_start_in_q2_reads:avg_clipped_length:avg_distance_to_effective_3p_end   ...
 #x = '~/projects2/av_pdac_ct/analysis/exome/set1/snv/bamreadcount/GDraetts-CSMS-G001-PATC53R1-T_C8P7HACXX-1-AACGCTTA.bwa_recalibed_bamreadcnt.tsv'
 
+#' parse read count
+#'
+#' @param x something
+#' @param samplename something
+#' @param bed something
+#'
+#' @export
 bam_readcount.parse <- function(x, 
                                 samplename,
                                 bed){
@@ -127,9 +138,14 @@ bam_readcount.parse <- function(x,
   dat2 = left_join(dat2, dat_ref, by = c("chr", "start"))
   
   # combine with bed
-  if(!is.data.frame(bed))
-    if(file.exists(bed))
-      bed = read_tsv(bed)
+  if(!is.data.frame(bed)){
+    if(file.exists(bed)){
+      bed = read_tsv(bed, col_types = cols(.default = col_character())) %>% 
+        mutate(start = as.integer(start), 
+               end = as.integer(end))
+    }
+  }
+    
   
   dat3 = left_join(bed, dat2, by = c("chr", "start", "end", 
                                      "ref_allele", "alt_allele"))
@@ -141,55 +157,90 @@ bam_readcount.parse <- function(x,
 
 #' bam_readcount_r
 #' 
-#' # read add mutect files, filter and create bed
+#' read add mutect files, filter and create bed. quick R func, for somatic variants
+#'
+#' @param trk can be a data.frame, or a tsv file with columns: sample1, mutect_fl, file1 (recalibed bam)
+#' @param execute something
+#' @param bamreadcount_exe something 
+#' @param fa_fl something
 #' 
-#' quick R func, for somatic variants
-#'
-#' @return
+#' @import flowr
+#' @import parallel
+#' 
 #' @export
-#'
-#' @examples
-bam_readcount_r <- function(trk, execute = F){
+bam_readcount_r <- function(trk, 
+                            col_fl = "MUT", 
+                            col_bam = "BAM",
+                            col_samp = "NAME",
+                            execute = F,
+                            bamreadcount_exe = "~/apps/conda/3.6/bin/bam-readcount",
+                            force_redo = F,
+                            fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta"
+                            
+                            ){
   
-  p_load(flowr, parallel)
+  # pacman::p_load(flowr, parallel)
   
+  if(!is.data.frame(trk))
+    trk = read_tsv(trk)
+  
+  trk = data.frame(trk, check.names = F, stringsAsFactors = F)
+  
+  # # make sure trk has the reqd columns
+  # cols_expected = c("mutect_fl", "sample1", "file1")
+  # testthat::expect_named(trk, cols_expected, ignore.order = TRUE, ignore.case = TRUE)
+
   message("reading mutect ...")
-  df_mutect = mutect.read(trk)
+  df_mutect = mutect.read(trk, 
+                          col_fl = col_fl,
+                          col_samp = col_samp)
   # create well annotated bed, judgement is always KEEP
   message("\ncreating uniq bed ...")
-  df_mutect_bed = dplyr::select(df_mutect, chr, start, end, ref_allele, alt_allele, context, key:entrez_gene_id) %>% unique()
+  df_mutect_bed = dplyr::select(df_mutect, chr, start, end, ref_allele, alt_allele, 
+                                context, key:entrez_gene_id, 
+                                # should add aaannotation
+                                aaannotation) %>% unique()
   
   # write out bed, and run bam read count on each bam file:
   write_tsv(df_mutect_bed, "df_bed.tsv")
   
   # get bamreadcount fls:
   message("get bamreacount cmds ...")
-  bamreadcnt_fl = paste0(trk$samplelbl1, ".bamreadcount.tsv")
+  bamreadcnt_fl = paste0(trk[, "NAME"], ".bamreadcount.tsv")
   # run bam read count
-  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/bam_readcount.R')
-  bamreadcnt_fl = paste0(trk$samplelbl1, ".bamreadcount.tsv")
-  bamreadcnt_ann_fl = paste0(trk$samplelbl1, ".bamreadcount_ann.tsv")
-  out = bam_readcount(file.path("/rsrch1/iacs/ngs_runs", trk$runid, "bams", trk$bam1), 
-                          samplename = trk$samplelbl1, 
-                          outfile = bamreadcnt_fl, 
-                          bed = "df_bed.tsv")
+  # source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/bam_readcount.R')
+  bamreadcnt_fl = paste0(trk[, "NAME"], ".bamreadcount.tsv")
+  bamreadcnt_ann_fl = paste0(trk[, "NAME"], ".bamreadcount_ann.tsv")
+  # bam-readcount [OPTIONS] <bam_file> [region]
+  # cmd = glue("{bamreadcount_exe} -l {bed} -f {fa_fl} {bam} > {outfile}") %>% 
+  #   as.character()
+  out = bam_readcount(bam = trk[, "BAM"], 
+                      samplename = trk[, "NAME"], 
+                      outfile = bamreadcnt_fl, 
+                      fa_fl = fa_fl,
+                      bamreadcount_exe = bamreadcount_exe,
+                      bed = "df_bed.tsv")
   
   message("run bamreacount ...")
-  out$flowmat$cmd = paste0(out$flowmat$cmd, " 2> ", trk$samplelbl1, ".bamreadcount.log");
+  out$flowmat$cmd = paste0(out$flowmat$cmd, " 2> ", trk[, "NAME"], ".bamreadcount.log");
   print(out$flowmat$cmd)
   
-  if(execute)
-    tmp = mclapply(out$flowmat$cmd, system, mc.cores = 5)
+  # if execute and some files do not exists
+  # OR if redo == T
+  if(execute & any(!file.exists(bamreadcnt_fl)) | force_redo)
+    tmp = parallel::mclapply(out$flowmat$cmd, system, mc.cores = length(out$flowmat$cmd))
   
-  # parse each of the files
+  message("parse each of the files ...")
   tmp = lapply(1:nrow(trk), function(i){
     df_bamreadcount = bam_readcount.parse(x = bamreadcnt_fl[i], 
-                        samplename = trk$samplelbl1[i], 
+                        samplename = trk[i, "NAME"], 
                         bed = "df_bed.tsv")
     write_tsv(df_bamreadcount, bamreadcnt_ann_fl[i])
   }) %>% bind_rows()
   
-  trk$bamreadcnt_ann_fl = bamreadcnt_ann_fl
+  trk$MUT_RECALL = bamreadcnt_ann_fl
+  write_tsv(trk, "trk.tsv")
+  write_rds(tmp, "df_bamreadcount.rds")
   
   list(trk = trk, df_bamreadcount = tmp)
   

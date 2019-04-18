@@ -46,26 +46,27 @@ if(FALSE){
 
 
 #' @title runXenome
-#' @description runXenome
-#' @param bam
-#' @param fq1
-#' @param fq2
-#' @param outbam
-#' @param odir
-#' @param picard_dir
-#' @param xenome_exe
-#' @param xen_index
-#' @param java
-#' @param javaMem
-#' @param xen_cores
-#' @param xenome_fastq_exe
-#' @param python_exe
-#' @param filter_reads_exe
-#' @param execute
-#' @param verbose
+#' @description runXenome runXenome
+#' @param bam bam
+#' @param fq1 fq1
+#' @param fq2 something
+#' @param outbam something
+#' @param odir something
+#' @param picard_dir something
+#' @param xenome_exe something
+#' @param xen_index something
+#' @param java something
+#' @param javaMem something
+#' @param xen_cores something
+#' @param xenome_fastq_exe something
+#' @param python_exe something
+#' @param filter_reads_exe something
+#' @param execute something
+#' @param verbose something
 #' @export
 #' @examples \dontrun{
-#' runXenome(bam = bam, fq1 = fq1, fq2 = fq2, outbam = outbam, odir = odir, picard_dir = /scratch/rists/hpcapps/x86_64/picard/1.112, xenome_exe = /scratch/rists/hpcapps/rhel6/xenome/1.0.1-r/xenome, xen_index = /IACS1/NGS/hg19-mm9-xenome-index/hg19-mm9-xenome-index, java = /scratch/rists/hpcapps/x86_64/jdk/jdk1.7.0/bin/java, javaMem = -Xmx8g, xen_cores = 24, xenome_fastq_exe = /scratch/iacs/bin/xenome/xen_to_fastq.sh, python_exe = /scratch/rists/hpcapps/x86_64/Python/2.7.6-new/bin/python, filter_reads_exe = /scratch/iacs/bin/xenome/filter_xeno_mmReads.py, execute = TRUE, verbose = FALSE)}
+#' runXenome(bam = bam, fq1 = fq1, fq2 = fq2, outbam = outbam, odir = odir, picard_dir = /scratch/rists/hpcapps/x86_64/picard/1.112, xenome_exe = /scratch/rists/hpcapps/rhel6/xenome/1.0.1-r/xenome, xen_index = /IACS1/NGS/hg19-mm9-xenome-index/hg19-mm9-xenome-index, java = /scratch/rists/hpcapps/x86_64/jdk/jdk1.7.0/bin/java, javaMem = -Xmx8g, xen_cores = 24, xenome_fastq_exe = /scratch/iacs/bin/xenome/xen_to_fastq.sh, python_exe = /scratch/rists/hpcapps/x86_64/Python/2.7.6-new/bin/python, filter_reads_exe = /scratch/iacs/bin/xenome/filter_xeno_mmReads.py, execute = TRUE, verbose = FALSE)
+#' }
 runXenome <- function(bam, fq1, fq2,
                       outbam, odir,
                       picard_dir = "/scratch/rists/hpcapps/x86_64/picard/1.112", #optsaturn$get("ngs.picard_dir"),

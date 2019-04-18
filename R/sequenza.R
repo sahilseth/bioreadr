@@ -90,7 +90,8 @@ if(FALSE){
 
 # seqz ex --------
 if(FALSE){
-  library(sequenza)
+  library(pacman)
+  p_load(sequenza)
   seqz0 = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/mpileup_sequenza_temp/MS-PDX-300x-1728D-CB223_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bam_seqz.gz"
   seqz1 = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/mpileup_sequenza_temp/MS-PDX-300x-1728D-CB224_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bam_seqz.gz"
   seqzs = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/mpileup_sequenza_temp/MS-PDX-300x-1728D-CB225_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bam_seqz.gz"
@@ -102,6 +103,40 @@ if(FALSE){
 }
 
 
+# ** gc ------
+# python_exe="/rsrch2/iacs/iacs_dep/sseth/apps/conda/2.7/bin/python"
+# ref_fasta="/rsrch2/iacs/iacs_dep/sseth/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta"
+# sequenza_utils_exe="/rsrch2/iacs/iacs_dep/sseth/R/x86_64-pc-linux-gnu-library/3.5/sequenza/exec/sequenza-utils.py"
+# need to do ONCE
+# ${python_exe} ${sequenza_utils_exe} GC-windows -w 50 ${ref_fasta} | gzip > Homo_sapiens_assembly19.gc50Base.txt.gz
+
+sequenza_seqz <- function(bam_t, 
+                          bam_n, 
+                          samplename,
+                          sequenza_utils_exe = "/rsrch2/iacs/iacs_dep/sseth/R/x86_64-pc-linux-gnu-library/3.5/sequenza/exec/sequenza-utils.py",
+                          oprefix){
+  
+  # facets uses the following:
+  # pileupfl = glue("{oprefix}_pileup.tmp.gz")
+  # snp_pipeup_param = "-g -q15 -Q20 -P100 -r25,0"
+  # cmd0 = glue("{snp_pileup_exe} -g -q15 -Q20 -P100 -r25,0 {vcffl} {pileupfl} {bam_n} {bam_t}")
+  # cmd0 = as.character(cmd0)
+  
+  # https://cran.r-project.org/web/packages/sequenza/vignettes/sequenza.pdf
+  # 1 samtools mpileup −f hg19.fasta −Q 20 normal.bam | gzip > normal.pileup.gz
+  # 2 samtools mpileup −f hg19.fasta −Q 20 tumor.bam | gzip > tumor.pileup.gz
+  
+  # need to do ONCE
+  # sequenza−utils.py GC−windows −w 50 hg19.fa | gzip > hg19.gc50Base.txt.gz
+  
+  # sequenza−utils.py bam2seqz −gc hg19.gc50Base.txt.gz
+  # −−fasta hg19.fasta \
+  #  −n normal.fifo \
+  # −t tumor.fifo | gzip > out.seqz.gz
+  
+  # sequenza−utils.py seqz−binning −w 50 \
+  # −s out.seqz.gz | gzip > out small.seqz.gz
+}
 
 sequenza_r_pipe <- function(seqz, 
                             oprefix,
@@ -111,33 +146,33 @@ sequenza_r_pipe <- function(seqz,
                             cores = 10,
                             ....){
   
-  #' window: ONLY for plotting, window size controlled by breaks.method ONLY
-  #' https://groups.google.com/forum/#!searchin/sequenza-user-group/too$20many$20segments%7Csort:date/sequenza-user-group/Hnzswcq-34s/nZ94ehwAGQAJ
-  #' min.type.freq=0.9: to remove freq type (in case of multiple muts, at location)
-  #'     var ignored at: 5/6(0.83) 0/6(0) and 1/6(0.17)
-  #' weighted.mean=TRUE; eighted mean, positions with more reads have more weight 
-  #'     in the calculation of the mean value for the segment 
-  #'     (a segment value is an average of all the positions included in it)... 
-  #'     In some case is better with the feature turned off in presence of bias 
-  #'     (positions with huge amount of reads)  
+  # window: ONLY for plotting, window size controlled by breaks.method ONLY
+  # https://groups.google.com/forum/#!searchin/sequenza-user-group/too$20many$20segments%7Csort:date/sequenza-user-group/Hnzswcq-34s/nZ94ehwAGQAJ
+  # min.type.freq=0.9: to remove freq type (in case of multiple muts, at location)
+  #     var ignored at: 5/6(0.83) 0/6(0) and 1/6(0.17)
+  # weighted.mean=TRUE; eighted mean, positions with more reads have more weight
+  #     in the calculation of the mean value for the segment
+  #     (a segment value is an average of all the positions included in it)...
+  #     In some case is better with the feature turned off in presence of bias
+  #     (positions with huge amount of reads)
   seqz_ex <- sequenza.extract(seqz, chromosome.list = chroms, ...)
-  
-  #'
-  #' N.ratio.filter=10; minimum no of obs, required to consider a segmetn
-  #' The fit step is particularly important to filter out unreliable segments. 
-  #' This will produce the estimation, we are not throwing out segments for 
-  #' downstream analysis.
-  #' 
-  #' N.BAF.filter=1; ONLY HETEROZYGOUS SNPS ARE USED
-  #'   So a segment could have 100 "ratio" pos, but only 2 "heterozygous" pos.
-  #'   I think you are confusing yourself with the variants in the segment in this case: 
-  #'   the only variant that we consider for the segment are the germlines heterozygous, 
-  #'   so position that are detected het already in the normal. 
-  #'   
-  #' ratio.priority: FALSE
-  #'  This is advisable if the BAF profile looks very noisy. 
-  #'  In WES it could be the case, in WGS the heterozygous position are much more and more 
-  #'  reliable, but in exome it depends a lot on the specific dataset.
+
+  # 
+  #   N.ratio.filter=10; minimum no of obs, required to consider a segmetn
+  #   The fit step is particularly important to filter out unreliable segments.
+  #   This will produce the estimation, we are not throwing out segments for
+  #   downstream analysis.
+  # 
+  #   N.BAF.filter=1; ONLY HETEROZYGOUS SNPS ARE USED
+  #     So a segment could have 100 "ratio" pos, but only 2 "heterozygous" pos.
+  #     I think you are confusing yourself with the variants in the segment in this case:
+  #     the only variant that we consider for the segment are the germlines heterozygous,
+  #     so position that are detected het already in the normal.
+  # 
+  #   ratio.priority: FALSE
+  #    This is advisable if the BAF profile looks very noisy.
+  #    In WES it could be the case, in WGS the heterozygous position are much more and more
+  #    reliable, but in exome it depends a lot on the specific dataset.
   seqz_fit = sequenza.fit(seqz_ex, female = !is_male, 
                           chromosome.list = chroms,
                           ratio.priority = T,
@@ -175,23 +210,23 @@ sequenza_r_pipe <- function(seqz,
 }
 
 
-getSeqzSegs <- function(seqz, cellularity, ploidy, odir, oprefix){
-  require(sequenza)
-  if(missing(odir)){
-    odir <- dirname(seqz)
-  }
-  if(missing(oprefix)){
-    oprefix <- gsub("_.*", "", basename(oprefix))
-  }
-  extracted <- sequenza.extract(seqz)
-  ADRatio <- mean(extracted$gc$adj[, 2])
-  segMat <- na.exclude(do.call("rbind", extracted$segments))
-  cns <- baf.bays(BF = segMat$Bf, depth.ration = segMat$depth.ratio, 
-                  cellularity = cellularity, ploid = ploidy, 
-                  avg.depth.ratio = ADRatio)
-  
-  return(cbind(segMat, cns))
-}
+# getSeqzSegs <- function(seqz, cellularity, ploidy, odir, oprefix){
+#   require(sequenza)
+#   if(missing(odir)){
+#     odir <- dirname(seqz)
+#   }
+#   if(missing(oprefix)){
+#     oprefix <- gsub("_.*", "", basename(oprefix))
+#   }
+#   extracted <- sequenza.extract(seqz)
+#   ADRatio <- mean(extracted$gc$adj[, 2])
+#   segMat <- na.exclude(do.call("rbind", extracted$segments))
+#   cns <- baf.bays(BF = segMat$Bf, depth.ration = segMat$depth.ratio, 
+#                   cellularity = cellularity, ploid = ploidy, 
+#                   avg.depth.ratio = ADRatio)
+#   
+#   return(cbind(segMat, cns))
+# }
 
 
 

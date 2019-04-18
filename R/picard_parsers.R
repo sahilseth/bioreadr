@@ -5,6 +5,10 @@
 
 # "insert_size\tAll_Reads.fr_count\tAll_Reads.tandem_count"
 
+#' @name parse_est_libsize
+#'
+#' @param outFile outFile
+#'
 #' @export
 parse_est_libsize <- function(outFile){
   tmp=try(scan(outFile,what="character",sep="\n")) #read the output
@@ -21,6 +25,10 @@ parse_est_libsize <- function(outFile){
 #  [9] "insert_size\tAll_Reads.fr_count", "all_Reads.tandem_count"
 
 
+#' @name parse_insert_size
+#'
+#' @param outFile something
+#'
 #' @import magrittr
 #' @export
 parse_insert_size <- function(outFile){
@@ -63,6 +71,11 @@ parse_insert_size <- function(outFile){
 ## outFile <- "/IACS1/GCC/LevelII/130308_SN1222_0177_BD1UT7ACXX/MOON-LAL-AL639A739M9_130308_SN1222_0177_BD1UT7ACXX_s_6_AGTCAC.rg.sorted.marked.metrics"
 ## picard.parse.MarkDup(outFile)
 
+#' @name parse_mark_dup
+#' 
+#' @param outFile  outFile
+#' @param names.prefix  names.prefix
+#'
 #' @export
 parse_mark_dup <- function(outFile, names.prefix=""){
   tmp <- try(scan(outFile,what="character",sep="\n"))
@@ -84,6 +97,11 @@ parse_mark_dup <- function(outFile, names.prefix=""){
 
 ## outFile <- "/IACS1/GCC/QA/130426_SN1120_0250_BD24WYACXX/MOON-LAL-AL745A953S5_8_GCCAAG/MOON-LAL-AL745A953S5_130426_SN1120_0250_BD24WYACXX_s_8_GCCAAG.rg.sorted.recalibed.hsMetrics.out"
 
+#' hsmetrics
+#' 
+#' @param outFile something 
+#' @param names.prefix something
+#'
 #' @export
 parse_hsmetrics <- function(outFile,names.prefix=""){
   as.n=as.numeric
@@ -119,6 +137,10 @@ parse_hsmetrics <- function(outFile,names.prefix=""){
 
 #file = "/rsrch2/iacs/tmp/151223_SN1120_0379_AC82C1ACXX/bams/KTakahashi-AZABMsubp-AfMDSLTHSC-12-T_C82C1ACXX-1-ACAAGCTA.bwa_reheaded.qual.arq.out"
 
+#' read qual
+#' 
+#' @param file something
+#'
 #' @export
 parse_read_qual <- function(file){
   df = params::read_sheet(file, ext = "tsv")
@@ -128,9 +150,11 @@ parse_read_qual <- function(file){
 }
 
   
+#' idxstats 
 #' 
+#' @param file 
+#'
 #' @export
-#' 
 parse_idxstats <- function(file){
    tmp=scan(file,what="character",sep="\n")
     tmp=tmp[-length(tmp)]
@@ -154,12 +178,12 @@ parse_idxstats <- function(file){
 ## 21821 + 0 with mate mapped to a different chr (mapQ>=5)
 ##out=lapply(flagstats,ngs.parseFlagstat);write.csv(cbind(bams,mat),file="/speedB/MiSeqData/Moon_QC_batch1/flagstat.csv",quote=FALSE)
 
-#' Title
+#' flagstat
 #'
-#' @param x
-#' @param genome_length
-#' @param read_length
-#' @param names.prefix
+#' @param x something
+#' @param genome_length something
+#' @param verbose  something
+#' @param read_length something
 #'
 #' @export
 #'

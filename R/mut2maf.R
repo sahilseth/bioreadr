@@ -44,8 +44,11 @@ get_categ <- function (mut, context = "context",
 
 getEffect <- function (mut,
                        func = "func",
-                       silent = c("", NA, "NA", NULL, "unknown", "synonymous SNV", "splicing synonymous SNV"),
-                       nonsilent = c("nonsynonymous SNV", "stopgain", "stoploss"),
+                       silent = c("", NA, "NA", NULL, 
+                                  "unknown", "synonymous SNV", 
+                                  "splicing synonymous SNV"),
+                       nonsilent = c("nonsynonymous SNV", 
+                                     "stopgain", "stoploss"),
                        noncoding = "."){
   
   if(mut[func] %in% silent){
@@ -61,52 +64,102 @@ getEffect <- function (mut,
   }
 }
 
+#### Called by mutect2MAF
+getTumorRef <- function(mut, what = c(1, 2), trCount = "t_ref_count", 
+                        rAllele = "ref_allele", aAllele = "alt_allele"){
+  if(what == 1){
+    if(as.numeric(mut[trCount]) > 0){
+      return(mut[grep(rAllele, names(mut))])
+    }else{
+      return(mut[grep(aAllele, names(mut))])
+    }
+  }else{
+    return(mut[grep(aAllele, names(mut))])
+  }
+}
+
+
 tsv2maf <- function(x,
                     gene = "gene.refgene",
                     entrez_gene_id = "entrez_gene_id",
+                    
                     chrom = "chr",
                     start_pos = "start",
                     end_pos = "end",
+                    
                     func = "exonic.func",
                     ref_allele = "ref_allele",
                     alt_allele = "alt_allele",
+                    
+                    # AF
                     t_alt_count = "t_alt_count",
                     t_ref_count = "t_ref_count",
+                    
                     sample_name = "sample_name",
                     ref_name = "sample_name",
                     sample_bam = "sample_bam",
-                    mutation_score = "score"){
+                    
+                    # mut qual
+                    mutation_score = "score",
+                    
+                    # AA change
+                    protein_change = "aachange"
+                    
+                    # TCGA/clinVAR etc
+                    
+                    
+                    ){
+  
   x = as.data.frame(x, stringsAsFactors = FALSE)
+  
+  message("seq alleles")
+  Tumor_Seq_Allele1 = apply(x, 1, getTumorRef,
+                            what = 1,
+                            trCount = t_ref_count,
+                            rAllele = ref_allele,
+                            aAllele = alt_allele)
+  Tumor_Seq_Allele2 = apply(x, 1,  getTumorRef, what = 2,
+                            trCount = t_ref_count,
+                            rAllele = ref_allele,
+                            aAllele = alt_allele)
+  
   maf <- data.frame(Hugo_Symbol = x[, gene],
                     #Entrez_Gene_Id = x[, entrez_gene_id],
                     Center = "IACS-MDACC",
                     NCBI_Build = "hg19",
+                    
+                    # position
                     Chromosome = x[, chrom],
                     Start_position = x[, start_pos],
                     End_position = x[, end_pos],
                     Strand = "+",
+                    
+                    # class
                     Variant_Classification = x[, func],
                     Variant_Type = "SNP",
+                    
                     Reference_Allele = x[, ref_allele],
-                    t_alt_count = x[, t_alt_count],
-                    t_ref_count = x[, t_ref_count],
-                    Tumor_Seq_Allele1 = apply(x, 1, getTumorRef,
-                                              what = 1,
-                                              trCount = t_ref_count,
-                                              rAllele = ref_allele,
-                                              aAllele = alt_allele),
-                    Tumor_Seq_Allele2 = apply(x, 1,  getTumorRef, what = 2,
-                                              trCount = t_ref_count,
-                                              rAllele = ref_allele,
-                                              aAllele = alt_allele),
-                    dbSNP_RS = x[, grep("dbsnp129", colnames(x))],
-                    dbSNP_Val_Status = "bySubmitter",
-                    Tumor_Sample_Barcode = x[, sample_name],
-                    Matched_Norm_Sample_Barcode = x[, ref_name],
+                    Tumor_Seq_Allele1 = Tumor_Seq_Allele1,
+                    Tumor_Seq_Allele2 = Tumor_Seq_Allele2,
                     Match_Norm_Seq_Allele1 = "",
                     Match_Norm_Seq_Allele2 = "",
                     Tumor_Validation_Allele1 =  "",
                     Tumor_Validation_Allele2 = "",
+                    
+                    
+                    # tumor allele counts
+                    t_alt_count = x[, t_alt_count],
+                    t_ref_count = x[, t_ref_count],
+                    # AF:
+                    t_vaf = x[, t_alt_count]/(x[, t_alt_count] + x[, t_ref_count]),
+                    
+                    # normal allele counts
+                    
+                    dbSNP_RS = x[, grep("dbsnp129", colnames(x))],
+                    dbSNP_Val_Status = "bySubmitter",
+                    Tumor_Sample_Barcode = x[, sample_name],
+                    Matched_Norm_Sample_Barcode = x[, ref_name],
+                    
                     Verification_Status = "",
                     Validation_Status = "",
                     Mutation_Status = "Somatic",
@@ -116,8 +169,16 @@ tsv2maf <- function(x,
                     Score = x[, mutation_score],
                     BAM_File = x[, sample_bam],
                     Sequencer = "Illumina HiSeq",
-                    effect = apply(x, 1, getEffect, func= func), stringsAsFactors = FALSE)
+                    effect = apply(x, 1, getEffect, func= func),
+                    
+                    Protein_Change = x[, protein_change],
+                    
+                    
+                    stringsAsFactors = FALSE)
   #categ = apply(x, 1, getCateg, context=context, aAllele=alt_allele, rAllele=ref_allele))
   return(maf)
   
 }
+
+
+mutect_ann_to_maf = tsv2maf

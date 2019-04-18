@@ -22,11 +22,14 @@
 
 
 
-#' uses a fqsheet, which need columsn
-#' - samplename
-#' - lane
-#' - num
-#' - read
+
+#' kallisto PE fqsheet
+#' 
+#' @param fqsheet needs columns: samplename, lane, num, read
+#' @param kallisto_exe kallisto_exe
+#' @param kallisto_index_path kallisto_index_path
+#' 
+#' 
 kallisto_pe.fqsheet <- function(fqsheet, 
                                 kallisto_exe = "/rsrch2/iacs/apps/conda/3.18.9/bin/kallisto", 
                                 kallisto_index_path = "/rsrch2/iacs/iacs_dep/sseth/ref/human/indexes/kallisto/0.42.4/gencode.v19.pc_transcripts"){
@@ -61,18 +64,15 @@ kallisto_pe.fqsheet <- function(fqsheet,
 
 #' Run a paired end kallisto pipeline
 #'
-#' @param fq1 
-#' @param fq2 
-#' @param samplename 
-#' @param out_prefix 
-#' @param kallisto_exe 
-#' @param kallisto_index_path 
-#' @param kallisto_opts 
+#' @param fq1 something
+#' @param fq2 something 
+#' @param samplename something 
+#' @param out_prefix something 
+#' @param kallisto_exe something 
+#' @param kallisto_index_path something 
+#' @param kallisto_opts something 
 #'
-#' @return
 #' @export
-#'
-#' @examples
 kallisto_pe <- function(fq1, fq2, 
                         samplename,
                         
@@ -101,6 +101,45 @@ kallisto_pe <- function(fq1, fq2,
   
 }
 
+#' Run a paired end kallisto pipeline
+#'
+#' @param fq1 something
+#' @param fq2 something 
+#' @param samplename something 
+#' @param out_prefix something 
+#' @param kallisto_exe something 
+#' @param kallisto_index_path something 
+#' @param kallisto_opts something 
+#'
+#' @export
+kallisto_se <- function(fq1,
+                        samplename,
+                        
+                        out_prefix,
+                        
+                        kallisto_exe = opts_flow$get("kallisto_exe"),
+                        kallisto_index_path = opts_flow$get("kallisto_index_path"),
+                        #"/rsrch2/iacs/iacs_dep/sseth/ref/human/indexes/kallisto/0.42.4/gencode.v19.pc_transcripts", 
+                        kallisto_opts = opts_flow$get("kallisto_opts")
+                        #"-b 30"
+                        
+){
+  
+  if(missing(out_prefix))
+    out_prefix = paste0(samplename, "_kallisto")
+  
+  check_args()
+  
+  # create kallisto cmd
+  cmd_kal = sprintf("%s quant -i %s %s -o %s %s", 
+                    kallisto_exe, kallisto_index_path, kallisto_opts, out_prefix, fq1)
+  
+  flowmat = to_flowmat(list(kallisto = cmd_kal), samplename)
+  
+  return(list(flowmat = flowmat, outfiles = out_prefix))
+  
+}
+
 read_kallisto <- function(x, reader = read_sheet, ...){
   df = reader(x, ...) %>% tbl_df()
   
@@ -117,8 +156,9 @@ read_kallisto <- function(x, reader = read_sheet, ...){
 }
 
 
-#' Title
+#' parse_kallisto_metrics
 #'
+#' @param pattern something 
 #' @param wd path for flowr dir
 parse_kallisto_metrics <- function(wd, pattern = "kallisto"){
   
@@ -206,15 +246,12 @@ cp_kallisto <- function(flow_base_path = "~/flows/AV/20180313_CT_RNA/flowname-20
 
 #' create a tracking sheet for kallisto
 #'
-#' @param trk 
-#' @param base_out 
-#' @param project_id 
-#' @param sequencing_id 
+#' @param trk something 
+#' @param base_out something 
+#' @param project_id something 
+#' @param sequencing_id something 
 #'
-#' @return
 #' @export
-#'
-#' @examples
 create_trk.kallisto <- function(trk, 
                                 col_sequencing_id = "sample_id",
                                 kallisto_path = "~/.rsrch1/iacs/iacs_dep/sseth/data/runs/20180313_CT_RNA/kallisto/flowname-20180716-17-04-03-5WlTgRNo"){

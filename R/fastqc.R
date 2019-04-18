@@ -2,13 +2,14 @@
 
 #' Fastqc
 #'
-#' @param fqs
-#' @param fqpath
-#' @param odir
-#' @param fastqc_exe
-#' @param cpu_fastqc
-#' @param casava
-#' @param fastqc_opts
+#' @param fqs fqs
+#' @param fqpath fqpath
+#' @param odir odir
+#' @param fastqc_exe fastqc_exe
+#' @param cpu_fastqc something
+#' @param casava something
+#' @param fastqc_opts something
+#' @param samplename 
 #'
 #' @export
 #'

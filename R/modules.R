@@ -65,13 +65,10 @@ parse_rd <- function (x, ...){
 
 #' Show a list of all available modules in ultraseq
 #'
-#' @param pkg
-#' @param show
+#' @param pkg something
+#' @param show something
 #'
 #' @export
-#'
-#' @examples
-#' modules()
 modules <- function(pkg = "ultraseq", show = TRUE){
   
   funcs = ls(paste0('package:', pkg))

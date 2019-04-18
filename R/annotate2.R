@@ -49,7 +49,8 @@ if(FALSE){
 #'
 #'
 #' @export
-annotate_variants <- function(x, outfile,
+annotate_variants <- function(x, 
+                              outfile,
                               execute = TRUE,
                               annovar_path = "/scratch/iacs/apps/annovar/latest",
                               db_path = "/scratch/iacs/apps/annovar/humandb",
@@ -261,7 +262,7 @@ annotate_mutect <- function(x, odir, oprefix,
   ## --- ANNOTATE the file
   message("annotate_mutect, using oprefix: ", oprefix)
   tmp <- annotate_variants(tab,
-                           outpath = odir,
+                           #outpath = odir,
                            outfile = oprefix,
                            annovar_path = annovar_path,
                            build = build, use_uuid = use_uuid,
@@ -292,7 +293,7 @@ annotate_vcf <- function(x, oprefix, odir,
   message("annotate_mutect, using oprefix: ", oprefix)
   tmp <- annotate_variants(tab,
                            outfile = oprefix,
-                           outpath = odir,
+                           #outpath = odir,
                            annovar_path = annovar_path,
                            build = build, use_uuid = use_uuid,
                            protocols_g = protocols_g, protocols_f = protocols_f,

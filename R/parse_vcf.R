@@ -2,9 +2,9 @@
 #' Parse a VCF file into a TSV to be processed and annotated
 #'
 #' @param x a vcf file to be parsed
+#' @param cores something 
 #'
 #' @export
-#'
 parse_vcf <- function(x, cores = 1){
   require(dplyr)
   require(parallel)
@@ -72,7 +72,7 @@ splt_vcf_format <- function(x, format, prefix){
 #' splt_vcf_info
 #'
 #' @param x a character vector
-#' 
+#' @param cores something
 splt_vcf_info <- function(x, cores = 1){
   x = as.character(unlist(x))
   # for every record
@@ -133,13 +133,10 @@ format_vcf_info_ion <- function(x){
 
 #' adapted from john
 #'
-#' @param vcfName 
-#' @param key 
-#'
-#' @return
+#' @param key something
+#' @param fl vcf fl 
+#' 
 #' @export
-#'
-#' @examples
 .read_vcf <- function (fl, key = TRUE){
   vcf <- readLines(fl)
   header <- unlist(strsplit(gsub("#", "", vcf[max(grep("#",
@@ -165,7 +162,6 @@ format_vcf_info_ion <- function(x){
 #' @param ref name of the 'reference' sample
 #'
 #' @export
-#'
 parse_somatic_vcf <- function(x, samp, ref){
   message("Reading file...")
   
@@ -200,7 +196,6 @@ parse_somatic_vcf <- function(x, samp, ref){
 #' @param ref name of the 'reference' sample
 #'
 #' @export
-#'
 parse_somatic_vcf.oncotator <- function(x, samp, ref){
   message("Reading file...")
   

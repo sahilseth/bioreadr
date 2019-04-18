@@ -1,6 +1,16 @@
 
 #' picard_rg
 #' 
+#' @param x  something
+#' @param samplename  something
+#' @param rg_lane something 
+#' @param rg_platform something
+#' @param rg_center something
+#' @param java_exe something
+#' @param java_mem something
+#' @param java_tmp something
+#' @param picard_jar something
+#'
 #' @export
 #' 
 #' @importFrom tools file_path_sans_ext
@@ -50,8 +60,9 @@ picard_rg <- function(x,
 #' @param samplename 
 #' @param java_exe path to java
 #' @param java_mem java memory
-#' @param java_tmp
-#' @param picard_jar
+#' @param java_tmp something
+#' @param picard_jar something
+#' @param mergesam_opts something
 #'
 #' @export
 #' 
@@ -85,15 +96,15 @@ picard_mergesamfiles <- function(bams,
 }
 
 
-#' Title
+#' samtofastq
 #'
-#' @param bam
-#' @param mergedbam
-#' @param samplename
-#' @param java_exe
-#' @param java_mem
-#' @param java_tmp
-#' @param picard_dir
+#' @param bam something
+#' @param mergedbam something
+#' @param samplename something
+#' @param java_exe something
+#' @param java_mem something
+#' @param java_tmp something
+#' @param picard_dir something
 #'
 #' @export
 #' 
@@ -155,12 +166,12 @@ picard_samtofastq <- function(bam,
 #' not seem to use a lot of threads.
 #'
 #' @param x a vectors of files to merge
-#' @param mergedbam
-#' @param samplename
-#' @param java_exe
-#' @param java_mem
-#' @param java_tmp
-#' @param picard_dir
+#' @param mergedbam something
+#' @param samplename something
+#' @param java_exe something
+#' @param java_mem something
+#' @param java_tmp something
+#' @param picard_dir something
 #'
 #' @export
 #' 
