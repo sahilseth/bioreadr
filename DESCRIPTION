@@ -11,14 +11,21 @@ Depends:
     ultraseq,
     utils
 Imports:
+    flowr,
+    magrittr,
     params,
     RCurl,
     curl,
-    glue
+    glue,
+    readr,
+    dplyr,
+    janitor,
+    ggplot2,
+    cowplot
 Suggests:
     Rsamtools
 Description: Provides a host of modules and pipelines supporting a host of
     genomics data ranging from whole genome/exome sequencing, RNA-Seq and chipseq
     etc.
 License: GPL
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
