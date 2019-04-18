@@ -8,6 +8,8 @@ parse_vcf(x, cores = 1)
 }
 \arguments{
 \item{x}{a vcf file to be parsed}
+
+\item{cores}{something}
 }
 \description{
 Parse a VCF file into a TSV to be processed and annotated

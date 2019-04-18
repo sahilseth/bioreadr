@@ -2,13 +2,15 @@
 % Please edit documentation in R/kallisto.R
 \name{parse_kallisto_metrics}
 \alias{parse_kallisto_metrics}
-\title{Title}
+\title{parse_kallisto_metrics}
 \usage{
 parse_kallisto_metrics(wd, pattern = "kallisto")
 }
 \arguments{
 \item{wd}{path for flowr dir}
+
+\item{pattern}{something}
 }
 \description{
-Title
+parse_kallisto_metrics
 }

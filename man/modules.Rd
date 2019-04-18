@@ -7,11 +7,10 @@
 modules(pkg = "ultraseq", show = TRUE)
 }
 \arguments{
-\item{show}{}
+\item{pkg}{something}
+
+\item{show}{something}
 }
 \description{
 Show a list of all available modules in ultraseq
-}
-\examples{
-modules()
 }

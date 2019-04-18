@@ -16,7 +16,17 @@ picard_reorder(x, outfile, samplename = opts_flow$get("samplename"),
 \arguments{
 \item{x}{a vectors of files to merge}
 
-\item{picard_dir}{}
+\item{samplename}{something}
+
+\item{java_exe}{something}
+
+\item{java_mem}{something}
+
+\item{java_tmp}{something}
+
+\item{picard_dir}{something}
+
+\item{mergedbam}{something}
 }
 \description{
 The resulting file is sorted and index is created for it.

@@ -8,6 +8,8 @@ splt_vcf_info(x, cores = 1)
 }
 \arguments{
 \item{x}{a character vector}
+
+\item{cores}{something}
 }
 \description{
 splt_vcf_info

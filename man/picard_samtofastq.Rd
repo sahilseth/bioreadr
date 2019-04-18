@@ -2,7 +2,7 @@
 % Please edit documentation in R/picard.R
 \name{picard_samtofastq}
 \alias{picard_samtofastq}
-\title{Title}
+\title{samtofastq}
 \usage{
 picard_samtofastq(bam, samplename = opts_flow$get("samplename"),
   paired = TRUE, split = FALSE, num_reads = 8e+06,
@@ -14,8 +14,20 @@ picard_samtofastq(bam, samplename = opts_flow$get("samplename"),
   bam_fastq_opts = "INCLUDE_NON_PF_READS=true INCLUDE_NON_PRIMARY_ALIGNMENTS=false RE_REVERSE=true VALIDATION_STRINGENCY=LENIENT")
 }
 \arguments{
-\item{picard_dir}{}
+\item{bam}{something}
+
+\item{samplename}{something}
+
+\item{java_exe}{something}
+
+\item{java_mem}{something}
+
+\item{java_tmp}{something}
+
+\item{picard_dir}{something}
+
+\item{mergedbam}{something}
 }
 \description{
-Title
+samtofastq
 }

@@ -7,9 +7,9 @@
 .read_vcf(fl, key = TRUE)
 }
 \arguments{
-\item{key}{}
+\item{fl}{vcf fl}
 
-\item{vcfName}{}
+\item{key}{something}
 }
 \description{
 adapted from john

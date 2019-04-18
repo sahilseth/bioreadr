@@ -13,6 +13,25 @@ picard_rg(x, samplename = opts_flow$get("samplename"),
   java_tmp = opts_flow$get("java_tmp"),
   picard_jar = opts_flow$get("picard_jar"))
 }
+\arguments{
+\item{x}{something}
+
+\item{samplename}{something}
+
+\item{rg_lane}{something}
+
+\item{rg_platform}{something}
+
+\item{rg_center}{something}
+
+\item{java_exe}{something}
+
+\item{java_mem}{something}
+
+\item{java_tmp}{something}
+
+\item{picard_jar}{something}
+}
 \description{
 picard_rg
 }

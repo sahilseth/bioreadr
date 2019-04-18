@@ -4,11 +4,19 @@
 \alias{bam_readcount_r}
 \title{bam_readcount_r}
 \usage{
-bam_readcount_r(trk, execute = F)
+bam_readcount_r(trk, execute = F,
+  bamreadcount_exe = "~/apps/conda/3.6/bin/bam-readcount",
+  fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta")
+}
+\arguments{
+\item{trk}{can be a data.frame, or a tsv file with columns: sample1, mutect_fl, file1 (recalibed bam)}
+
+\item{execute}{something}
+
+\item{bamreadcount_exe}{something}
+
+\item{fa_fl}{something}
 }
 \description{
-# read add mutect files, filter and create bed
-}
-\details{
-quick R func, for somatic variants
+read add mutect files, filter and create bed. quick R func, for somatic variants
 }

@@ -4,11 +4,11 @@
 \alias{hla_fqs}
 \title{hla_fqs}
 \usage{
-hla_fqs(bam, samplename, samtools_exe = opts_flow$get("samtools_exe"),
+hla_fqs(bam, samplename, region = "6:29690552-33111102",
+  samtools_exe = opts_flow$get("samtools_exe"),
   java_exe = opts_flow$get("java_exe"),
   java_mem = opts_flow$get("java_mem"),
-  picard_jar = opts_flow$get("picard_jar"),
-  region = "6:29690552-33111102", execute = TRUE)
+  picard_jar = opts_flow$get("picard_jar"), execute = TRUE)
 }
 \arguments{
 \item{bam}{}

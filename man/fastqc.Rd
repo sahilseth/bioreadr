@@ -10,7 +10,21 @@ fastqc(fqs, samplename = opts_flow$get("samplename"), fqpath, odir,
   fastqc_opts = opts_flow$get("fastqc_opts"))
 }
 \arguments{
-\item{fastqc_opts}{}
+\item{fqs}{fqs}
+
+\item{samplename}{}
+
+\item{fqpath}{fqpath}
+
+\item{odir}{odir}
+
+\item{fastqc_exe}{fastqc_exe}
+
+\item{cpu_fastqc}{something}
+
+\item{casava}{something}
+
+\item{fastqc_opts}{something}
 }
 \description{
 Fastqc

@@ -2,13 +2,13 @@
 % Please edit documentation in R/bam_readcount.R
 \name{bam_readcount.parseline}
 \alias{bam_readcount.parseline}
-\title{Title}
+\title{parseline}
 \usage{
 bam_readcount.parseline(x)
 }
 \arguments{
-\item{x}{}
+\item{x}{something}
 }
 \description{
-Title
+parseline
 }

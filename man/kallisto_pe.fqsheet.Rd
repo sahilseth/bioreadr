@@ -10,10 +10,13 @@ kallisto_pe.fqsheet(fqsheet,
   kallisto_exe = "/rsrch2/iacs/apps/conda/3.18.9/bin/kallisto",
   kallisto_index_path = "/rsrch2/iacs/iacs_dep/sseth/ref/human/indexes/kallisto/0.42.4/gencode.v19.pc_transcripts")
 }
+\arguments{
+\item{fqsheet}{needs columns: samplename, lane, num, read}
+
+\item{kallisto_exe}{kallisto_exe}
+
+\item{kallisto_index_path}{kallisto_index_path}
+}
 \description{
-uses a fqsheet, which need columsn
-- samplename
-- lane
-- num
-- read
+kallisto PE fqsheet
 }

@@ -14,11 +14,17 @@ bam_readcount(bam, samplename, bed, outfile,
   bamreadcount_exe = "bam-readcount")
 }
 \arguments{
-\item{bam}{}
+\item{bam}{something}
 
-\item{bed}{}
+\item{samplename}{something}
 
-\item{bamreadcount_exe}{}
+\item{bed}{something}
+
+\item{outfile}{something}
+
+\item{fa_fl}{something}
+
+\item{bamreadcount_exe}{something}
 }
 \description{
 Question: How To Fix A Bam-Readcount Sm Error: "Couldn'T Grab Single-End Mapping Quality For Read"

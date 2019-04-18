@@ -23,7 +23,11 @@ picard_mergesamfiles(bams, outfile,
 
 \item{java_mem}{java memory}
 
-\item{picard_jar}{}
+\item{java_tmp}{something}
+
+\item{picard_jar}{something}
+
+\item{mergesam_opts}{something}
 }
 \description{
 The resulting bam file is sorted and with a indexed created.

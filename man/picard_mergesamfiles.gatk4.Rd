@@ -17,13 +17,17 @@ picard_mergesamfiles.gatk4(bams, outfile,
 
 \item{outfile}{name of the merged bam file}
 
-\item{samplename}{}
+\item{samplename}{something}
 
 \item{java_exe}{path to java}
 
 \item{java_mem}{java memory}
 
-\item{picard_jar}{}
+\item{gatk4_jar}{something}
+
+\item{gatk4_opts}{something}
+
+\item{mergesam_opts}{something}
 }
 \description{
 The resulting bam file is sorted and with a indexed created.

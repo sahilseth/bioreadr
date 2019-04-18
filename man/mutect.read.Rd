@@ -7,7 +7,11 @@
 mutect.read(trk, col_fl = "mutect", col_samp = "samplelbl1")
 }
 \arguments{
-\item{muts}{}
+\item{trk}{something}
+
+\item{col_fl}{something}
+
+\item{col_samp}{something}
 }
 \description{
 read mutect
