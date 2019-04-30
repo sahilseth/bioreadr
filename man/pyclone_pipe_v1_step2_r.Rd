@@ -6,7 +6,7 @@
 \usage{
 pyclone_pipe_v1_step2_r(pyclone_path = ".", trk = "trk.tsv",
   conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf",
-  execute = F)
+  force_redo = FALSE, clean_bams = FALSE)
 }
 \arguments{
 \item{pyclone_path}{tmp, path with all relavent files}
