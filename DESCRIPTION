@@ -16,6 +16,7 @@ Imports:
     params,
     RCurl,
     curl,
+    pacman,
     glue,
     readr,
     dplyr,
