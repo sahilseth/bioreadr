@@ -46,50 +46,7 @@ if(FALSE){
   
 }
 
-read_clone_arch_input_trk <- function(trk, 
-                                      normalize_file_names = F,
-                                      check_files_exist = F){
-  
-  pacman::p_load(testit)
-  
-  if(!is.data.frame(trk))
-    trk = readr::read_tsv(trk) %>% data.frame(stringsAsFactors = F)
-  
-  # bam file should already have been transferred
-  if(normalize_file_names)
-    trk %<>% 
-      mutate(BAM = basename(BAM),
-             MUT = basename(MUT),
-             CNV = basename(CNV))
-  
-  # TESTS
-  # make sure trk has the reqd columns
-  cols_expected = c("MUT", "NAME", "BAM", "CNV")
-  # testthat::expect_(cols_expected %in% colnames(trk))
-  testit::assert("we have reqd columns in trk", {
-    cols_expected %in% colnames(trk)
-  })
-  
-  # make sure files exist
-  bams = trk$BAM
-  bais = gsub(".bam$", ".bam.bai", bams)
-  muts = trk$MUT
-  segs = trk$CNV
-  # this will change based on input!
-  fits = gsub("_cncf.tsv", ".rds", segs)
-  
-  # ONLY REMOVE TEMPORARILY!!
-  if(check_files_exist)
-    testit::assert("check if all files exists", {
-      # file.exists(bams) &
-      #   file.exists(bais) &
-        file.exists(segs) &
-        file.exists(fits) &
-        file.exists(muts)
-    })
-  
-  trk
-}
+
 
 
 

@@ -1,6 +1,6 @@
 
 
-source('~/projects2/ss_tnbc/analysis/R/split_art_path_id.R')
+# source('~/projects2/ss_tnbc/analysis/R/split_art_path_id.R')
 
 # x = "IPCT-FC217-MOON0051-Cap1678-6-ID48_180910-STJ00106-0553-AHWNGNBBXX-4-TCGGCA"
 gm_split_propel_single_fls <- function(x){

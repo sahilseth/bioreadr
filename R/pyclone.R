@@ -535,7 +535,7 @@ pyclone_plots <- function(pyclone_path){
     left_join(df_ccf, ., by = "key") %>% 
     data.frame(row.names = .$key)
   
-  pacman::p_load(dplyr)
+  #pacman::p_load(dplyr)
   se_pyclone = SummarizedExperiment::SummarizedExperiment(list(
     mat_vaf = wranglr::to_mat(df_vaf), 
     mat_ccf = wranglr::to_mat(df_ccf)), 

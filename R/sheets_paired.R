@@ -129,3 +129,7 @@ create_paired_samplesheet <- function(x, fqmat,
 
 
 
+# read_clone_arch_input_trk()
+
+
+

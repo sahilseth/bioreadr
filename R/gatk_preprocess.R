@@ -108,7 +108,10 @@ preprocess.gatk_v2 <- function(bam,
   
   check_args(ignore = "outfile")
   source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/bam_set.R')
-  bamset = bam_set(bam = bam, outfile = outfile, ref_fasta_path = ref_fasta_path, split_by_chr = split_by_chr)
+  bamset = bam_set(bam = bam, 
+                   outprefix = outfile, 
+                   ref_fasta_path = ref_fasta_path, 
+                   split_by_chr = split_by_chr)
   
   # get the name of the function
   pipename = match.call()[[1]]
