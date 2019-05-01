@@ -23,7 +23,7 @@ bam_set <- function(bam,
   
   # only done by MAIN pipeline function
   #bam = tools::file_path_as_absolute(bam)
-  assert_that(has_extension(bam, "bam"))
+  assertthat::assert_that(assertthat::has_extension(bam, "bam"))
   obj$bam = bam
   
   # determine output file name
@@ -167,12 +167,12 @@ paired_bam_set <- function(tumor_bam,
   # check number of tumor and normal: should be same
   # if number of tumor/normal more than 1, is_merged should be FALSE
   
-  sapply(sapply(tumor_bam, has_extension, "bam"), assert_that)
-  sapply(sapply(normal_bam, has_extension, "bam"), assert_that)
+  sapply(sapply(tumor_bam, assertthat::has_extension, "bam"), assertthat::assert_that)
+  sapply(sapply(normal_bam, assertthat::has_extension, "bam"), assertthat::assert_that)
   obj$bam$tumor = tumor_bam
   obj$bam$normal = normal_bam
   
-  assert_that(length(tumor_bam) == length(tumor_bam))
+  assertthat::assert_that(length(tumor_bam) == length(tumor_bam))
   obj$bam$len = length(tumor_bam)
   
   

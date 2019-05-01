@@ -74,11 +74,11 @@ star.2.4.2a <- function(fq1, fq2, bam,
   ){
 
 
-  assert_that(is.character(ref_fasta))
-  assert_that(is.character(ref_star))
-  assert_that(is.character(star_exe))
-  assert_that(is.character(star_opts))
-  assert_that(!is.null(star_cpu)) ## not numeric, might be {{{CPU}}}
+  assertthat::assert_that(is.character(ref_fasta))
+  assertthat::assert_that(is.character(ref_star))
+  assertthat::assert_that(is.character(star_exe))
+  assertthat::assert_that(is.character(star_opts))
+  assertthat::assert_that(!is.null(star_cpu)) ## not numeric, might be {{{CPU}}}
 
 
   if(!missing(fq1)){
@@ -176,11 +176,11 @@ star.2.4.2a <- function(fq1, fq2, bam,
 ){
   
   
-  assert_that(is.character(ref_fasta))
-  assert_that(is.character(ref_star))
-  assert_that(is.character(star_exe))
-  assert_that(is.character(star_opts))
-  assert_that(!is.null(star_cpu)) ## not numeric, might be {{{CPU}}}
+  assertthat::assert_that(is.character(ref_fasta))
+  assertthat::assert_that(is.character(ref_star))
+  assertthat::assert_that(is.character(star_exe))
+  assertthat::assert_that(is.character(star_opts))
+  assertthat::assert_that(!is.null(star_cpu)) ## not numeric, might be {{{CPU}}}
   
   
   if(!missing(fq1)){

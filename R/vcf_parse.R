@@ -140,7 +140,10 @@ read_vcf <- function(x, cores = 1){
 
 parse_vcf = read_vcf
 
-
+.get_sample_names_mutect2 <- function(header){
+  
+  
+}
 
 #' Parse a somatic VCF, with two samples.
 #'
@@ -149,14 +152,25 @@ parse_vcf = read_vcf
 #' @param ref name of the 'reference' sample
 #'
 #' @export
-read_vcf_somatic <- function(x, samp, ref){
+read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   
   # rlogging::message("Reading file...")
   # add a read_vcf function
   vcf = read_vcf(x)
   mat = vcf$tab
   
+  
   rlogging::message("switch names...")
+  # check if this is mutect
+  if(length(vcf$header$tumor_sample) > 0 & is.null(samp)){
+    message(" picking tumor_sample from vcf")
+    samp = vcf$header$tumor_sample
+  }
+  if(length(vcf$header$normal_sample) > 0 & is.null(ref)){
+    message(" picking normal_sample from vcf")
+    ref = vcf$header$normal_sample
+  }
+  
   colnms = colnames(mat)
   colnms_new = gsub(tolower(samp), "t", colnms) %>% gsub(tolower(ref), "n", .)
   colnames(mat) = colnms_new
@@ -323,7 +337,7 @@ if(FALSE){
   nrow(df_igv)
   arrange(df_igv, -(ion_taf_fwd-taf_fwd)) %>% 
     select(chr:taf_diff, 
-           sb,
+           t_fmt_sb,n_fmt_sb,
            ion_taf_fwd:ion_taf_rev, 
            n_fmt_f1r2:n_fmt_f2r1_alt2, 
            t_fmt_f1r2:t_fmt_f2r1_alt2) %>% 
@@ -334,6 +348,14 @@ if(FALSE){
   select(df_igv, taf_fwd, taf_rev, ion_taf_fwd, ion_taf_rev)
   ggscatter(df_igv, "taf_fwd", "ion_taf_fwd")
   ggscatter(df_igv, "taf_rev", "ion_taf_rev")
+  
+  # ** ggscatter ---------
+  p_dp_full = filter(df_ion, type == "snp") %>% 
+    gghistogram("t_dp") + scale_x_log10()
+  # peak cov in this one sample seems to be about 50
+  p_dp_filt = filter(df_ion, in_filtered == TRUE, type == "snp") %>% 
+    gghistogram("t_dp") + scale_x_log10()
+  cowplot::plot_grid(p_dp_full, p_dp_filt)
   
   
   sock <- SRAdb::IGVsocket()

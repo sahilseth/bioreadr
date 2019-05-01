@@ -80,7 +80,7 @@ source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
                             redo = F, 
                             test = F){
   check_args()
-  cmd = glue("{gatk4_exe} --java-options '-Xmx12g' DenoiseReadCounts ", 
+  cmd = glue("{gatk4.exe} --java-options '-Xmx12g' DenoiseReadCounts ", 
              "-I {counts} --count-panel-of-normals {gatkcnv.pon.hdfs} ",
              "--standardized-copy-ratios {std_cr} ",
              "--denoised-copy-ratios {dn_cr}")
@@ -448,7 +448,7 @@ if(FALSE){
   # ** load vars --------
   opts_flow$load("~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/ss_cl_het/somatic_snv_indels.conf")
   opts_flow$set(
-    gatk4_exe = "$HOME/apps/gatk/gatk-4.1.1.0/gatk",
+    gatk4.exe = "$HOME/apps/gatk/gatk-4.1.1.0/gatk",
     gatk_intervals = "$HOME/ref/az_ref_beds/hg19/bed/Exome-NGv3_gatk.intervals",
     # pon_counts = "$HOME/ref/human/b37/common_normal/ms51_v1/gatkcnv_pon/v1_sfq/cnvponC.pon.hdf5",
     pon_counts = "$HOME/ref/human/b37/common_normal/ms51_v1/gatkcnv_pon/cnvpon_ms51_tier1_tier2.pon.hdf5",
@@ -461,8 +461,8 @@ if(FALSE){
   
   # ** fetch fls --------
   fls = df_trk$BAM
-  fetch_files_exe = "~/bin/fetch_files_v2.sh"
-  cmd_transfer = glue("{fetch_files_exe} {fls}*") %>% as.character()
+  fetch_files.exe = "~/bin/fetch_files_v2.sh"
+  cmd_transfer = glue("{fetch_files.exe} {fls}*") %>% as.character()
   message("> transferring files")
   # tmp = mclapply(cmd_transfer, system, mc.cores = 4)
   

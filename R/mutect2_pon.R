@@ -10,7 +10,7 @@ mutect2_pon_call_variants <- function(bam,
                                       mutect.cpu = opts_flow$get("mutect2.cpu"), 
                                       mutect.mem = opts_flow$get("mutect2.mem"),
                                       # mutect.java_opts = opts_flow$get("mutect2.java_opts"), 
-                                      mutect.opts = opts_flow$get("mutect2.opts"),
+                                      mutect2.pon.opts = opts_flow$get("mutect2.pon.opts"),
                                       java.mem_str = opts_flow$get("java.mem_str"),
                                       germline_vcf = opts_flow$get('germline_variants.vcf'),
                                       split_by = "interval_split",
@@ -29,15 +29,14 @@ mutect2_pon_call_variants <- function(bam,
   mutect_vcfs = paste0(bamset$out_prefix_interval, ".mutect.vcf.gz")
   intervals = bamset$intervals
   
-  cmd_sampname = glue("seqname=$(gatk GetSampleName -I {bam} -O /dev/stdout 2> /dev/null);") %>% as.character()
+  cmd_sampname = glue("seqname=$(gatk GetSampleName -I {bam} -O /dev/stdout 2> /dev/null)") %>% as.character()
   # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_walkers_mutect_CreateSomaticPanelOfNormals.php
   cmd_mutect <- glue("{cmd_sampname}; ",
                      "{gatk4.exe} --java-options '-Xmx{mutect.mem}g -XX:+UseParallelGC -XX:ParallelGCThreads={mutect.cpu}' ",
                      "Mutect2 -R {ref.fasta} -I {bam} ",
-                     "-A ReferenceBases ",      # add context bases
                      "--germline-resource {germline_vcf} ",
                      "-tumor $seqname ",
-                     "-O {mutect_vcfs} {mutect.opts} {intervals}") %>% as.character()
+                     "-O {mutect_vcfs} {mutect2.pon.opts} {intervals}") %>% as.character()
   # if(length(cmd_mutect))
   #   stop("some variables are null, cmd_mutect not formed")
   
@@ -76,7 +75,7 @@ if(FALSE){
     mutect2_pon_call_variants(bam = df_trk$bam[i], 
                               samplename = df_trk$samplename[i], 
                               ref_fasta = ref_fasta, 
-                              gatk4_exe = gatk4_exe, 
+                              gatk4.exe = gatk4.exe, 
                               mutect.mem = mutect.mem, 
                               mutect.cpu = mutect.cpu, 
                               mutect_opts = "", 

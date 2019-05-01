@@ -8,7 +8,7 @@ varscan_germline <- function(bam,
                     varscan_jar = opts_flow$get("varscan_jar"),
 
                     java_exe = opts_flow$get("java_exe_jdk7"), #module load jdk/1.7.0_79;
-                    gatk4_exe = opts_flow$get("gatk4_exe"),
+                    gatk4.exe = opts_flow$get("gatk4.exe"),
                     java_mem = opts_flow$get("java_mem")
                     
 ){
@@ -28,7 +28,7 @@ varscan_germline <- function(bam,
   # samtools_exe = "/rsrch2/iacs/iacs_dep/sseth/apps/samtools/1.9/bin/samtools"
   # varscan_jar = "/risapps/noarch/varscan/2.3.9/VarScan.v2.3.9.jar"
   # java_exe = "java" #module load jdk/1.7.0_79;
-  # gatk4_exe = "module purge;module load jdk/1.8.0_45;/rsrch2/iacs/iacs_dep/sseth/apps/gatk/4.0.10.1/gatk"
+  # gatk4.exe = "module purge;module load jdk/1.8.0_45;/rsrch2/iacs/iacs_dep/sseth/apps/gatk/4.0.10.1/gatk"
   # java_mem = "-Xmx16g"
   # samtools mpileup -d 10000 -q 1 -Q 15 -A -f my/reference/genome.fasta sample.bam > sample.mpileup
   # java -jar VarScan.v2.3.6.jar mpileup2cns sample.mpileup --variants --strand-filter 0 --p-value 0.01 --min-var-freq 0.01
@@ -69,7 +69,7 @@ varscan_germline <- function(bam,
   # https://software.broadinstitute.org/gatk/documentation/tooldocs/4.0.2.0/picard_vcf_MergeVcfs.php
   varscan_vcfs_i = paste0(varscan_vcfs, collapse = " -I ")
   varscan_vcf = paste0(samplename, ".varscan.vcf") # final VCF
-  cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} MergeVcfs -I {varscan_vcfs_i} -O {varscan_vcf} -D {ref_dict}") %>% 
+  cmd_mergevcf = glue("{gatk4.exe} --java-options {java_mem} MergeVcfs -I {varscan_vcfs_i} -O {varscan_vcf} -D {ref_dict}") %>% 
     as.character()
   # system(cmd_mergevcf)
   

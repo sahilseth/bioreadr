@@ -133,7 +133,7 @@
 #' @param cpu_mutect integer specifying number of thread to be used per mutect fork
 #' @param mem_mutect amount of memory to be used by mutect [-Xmx12g]
 #' @param ref_fasta path to the reference genome in fasta format
-#' @param mutect_opts additional arguments passed onto mutect
+#' @param mutect2.opts additional arguments passed onto mutect
 #' 
 #' @return The function returns a flowmat with all the commands. 
 #' The final file is called \code{'out_prefix'_merged.mutect.tsv}.
@@ -169,11 +169,11 @@ mutect2.gatk4 <- function(
   #java_opts = opts_flow$get("java_opts"),
   java_mem = opts_flow$get('java.mem'),
   
-  gatk4_exe = opts_flow$get('gatk4.exe'),
+  gatk4.exe = opts_flow$get('gatk4.exe'),
   
   mutect.cpu = opts_flow$get('mutect.cpu'),
   mutect.mem = opts_flow$get("mutect.mem"),
-  mutect_opts = opts_flow$get('mutect.opts'),
+  mutect2.opts = opts_flow$get('mutect.opts'),
   pon_vcf = opts_flow$get(""),
   
   germline_vcf = opts_flow$get('germline_variants.vcf'),
@@ -192,17 +192,17 @@ mutect2.gatk4 <- function(
   
   #opts_flow$load("somatic_snv_indels.conf")
   
-  #mutect_opts = "--artifact_detection_mode -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS -L $regions_bed_fl"
+  #mutect2.opts = "--artifact_detection_mode -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS -L $regions_bed_fl"
   mutect_vcfs = paste0(bamset$out_prefix_interval, ".mutect.vcf")
   mutect_bams = paste0(bamset$out_prefix_interval, ".mutect.bam")
   gatk_intervals = bamset$gatk_intervals
-  cmd_mutect <- glue("{gatk4_exe} --java-options '{mutect.mem} -XX:+UseParallelGC -XX:ParallelGCThreads={mutect.cpu}' ",
+  cmd_mutect <- glue("{gatk4.exe} --java-options '{mutect.mem} -XX:+UseParallelGC -XX:ParallelGCThreads={mutect.cpu}' ",
                      "Mutect2 -R {ref_fasta} -I {tumor_bam} -I {normal_bam} ",
                      "-tumor {tumor_name} -normal {normal_name} ",
                      "-pon {pon_vcf}",
                      "--germline-resource {germline_vcf} ",
                      "-bamout {mutect_bams} --native-pair-hmm-threads {mutect.cpu} ",
-                     "-O {mutect_vcfs} {mutect_opts} {gatk_intervals}")
+                     "-O {mutect_vcfs} {mutect2.opts} {gatk_intervals}")
   cmd_mutect[17]
   # gatk --java-options "-Xmx2g" Mutect2 
   # -R hg38/Homo_sapiens_assembly38.fasta \
@@ -215,12 +215,12 @@ mutect2.gatk4 <- function(
   # ** merge VCFs ---------
   mutect_vcf = paste0(outprefix, ".vcf")
   mutect_vcfs_i = paste0(mutect_vcfs, collapse = " -I ")
-  cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} MergeVcfs -I {mutect_vcfs_i} -O {mutect_vcf} ")
+  cmd_mergevcf = glue("{gatk4.exe} --java-options {java_mem} MergeVcfs -I {mutect_vcfs_i} -O {mutect_vcf} ")
   
   # ** gather bams ----
   mutect_bams_i = paste0(mutect_bams, collapse = " -I ");
   mutect_bam_o = paste0(bamset$out_prefix, "_mutect.bam")
-  cmd_mutect_gather_bams <- glue("{gatk4_exe} --java-options {java_mem} GatherBamFiles ", 
+  cmd_mutect_gather_bams <- glue("{gatk4.exe} --java-options {java_mem} GatherBamFiles ", 
                           "-I {mutect_bams_i} -O {mutect_bam_o} --CREATE_INDEX true --CREATE_MD5_FILE true")
   cmd_mergevcf = c(cmd_mergevcf, cmd_mutect_gather_bams)
   
@@ -230,21 +230,21 @@ mutect2.gatk4 <- function(
   tumor_cont_tab = glue("{tumor_bam_prefix}_contamination.table")
   #normal_cont_tab = glue("{normal_bam_prefix}_contamination.table")
   
-  cmd_pileup1 = glue("{gatk4_exe} GetPileupSummaries -I {tumor_bam} -V {germline_small_vcf} -O {tumor_pileup} -L {gatk_intervals_fl}")
-  cmd_pileup2 = glue("{gatk4_exe} GetPileupSummaries -I {normal_bam} -V {germline_small_vcf} -O {normal_pileup} -L {gatk_intervals_fl}")
+  cmd_pileup1 = glue("{gatk4.exe} GetPileupSummaries -I {tumor_bam} -V {germline_small_vcf} -O {tumor_pileup} -L {gatk_intervals_fl}")
+  cmd_pileup2 = glue("{gatk4.exe} GetPileupSummaries -I {normal_bam} -V {germline_small_vcf} -O {normal_pileup} -L {gatk_intervals_fl}")
   cmd_pileup = c(cmd_pileup1, cmd_pileup2)
   #' This produces a six-column table as shown. The alt_count is the count of reads that support the ALT allele in the germline resource. 
   #' The allele_frequency corresponds to that given in the germline resource. Counts for other_alt_count refer to reads that support all other alleles.
-  cmd_cont = glue("{gatk4_exe} CalculateContamination -I {tumor_pileup} -matched {normal_pileup} ",
+  cmd_cont = glue("{gatk4.exe} CalculateContamination -I {tumor_pileup} -matched {normal_pileup} ",
                     "-O {tumor_cont_tab}")
   cmd_cont
   
   mutect_filt1_vcf = paste0(samplename, "_filt1.vcf")
-  cmd_filter1 = glue("{gatk4_exe} FilterMutectCalls -V {mutect_vcf} --contamination-table {tumor_cont_tab} -O {mutect_filt1_vcf}")
+  cmd_filter1 = glue("{gatk4.exe} FilterMutectCalls -V {mutect_vcf} --contamination-table {tumor_cont_tab} -O {mutect_filt1_vcf}")
   
   # ** contamination/pipelup;f2 ---------
   #tumor_artifact = paste0(tumor_bam_prefix, "_seq_artifact")
-  cmd_collect_seq_artifact = glue("{gatk4_exe} CollectSequencingArtifactMetrics -I {tumor_bam} ",
+  cmd_collect_seq_artifact = glue("{gatk4.exe} CollectSequencingArtifactMetrics -I {tumor_bam} ",
                                    "-O {tumor_bam_prefix} ", # –EXT '.txt' have some issue here
                                    "-R {ref_fasta}")
   cmd_collect_seq_artifact
@@ -255,7 +255,7 @@ mutect2.gatk4 <- function(
   #' The tool knows to include the reverse complement contexts
   #' https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_exome_FilterByOrientationBias.php
   mutect_filt2_vcf = paste0(samplename, "_filt2.vcf")
-  cmd_filter2 = glue("{gatk4_exe} FilterByOrientationBias --artifact-modes 'G/T' --artifact-modes 'C/T' -V {mutect_filt1_vcf} ",
+  cmd_filter2 = glue("{gatk4.exe} FilterByOrientationBias --artifact-modes 'G/T' --artifact-modes 'C/T' -V {mutect_filt1_vcf} ",
                      "-P {tumor_bam_prefix}.pre_adapter_detail_metrics -O {mutect_filt2_vcf}")
   
   cmds <- list(m2_splt = cmd_mutect, 
@@ -301,12 +301,12 @@ mutect2.gatk4_recall <- function(trk){
   # -alleles force-call-alleles.vcf
   # -O single_sample.vcf.gz
   
-  cmd_mutect <- glue("{gatk4_exe} --java-options '{mutect.mem} -XX:+UseParallelGC -XX:ParallelGCThreads={mutect.cpu}' ",
+  cmd_mutect <- glue("{gatk4.exe} --java-options '{mutect.mem} -XX:+UseParallelGC -XX:ParallelGCThreads={mutect.cpu}' ",
                      "Mutect2 -R {ref_fasta} -I {tumor_bam} -I {normal_bam} ",
                      "-tumor {tumor_name} -normal {normal_name} ",
                      "--germline-resource {germline_vcf} ",
                      "-bamout {mutect_bams} --native-pair-hmm-threads {mutect.cpu} ",
-                     "-O {mutect_vcfs} {mutect_opts} {gatk_intervals}")
+                     "-O {mutect_vcfs} {mutect2.opts} {gatk_intervals}")
 }  
 
 

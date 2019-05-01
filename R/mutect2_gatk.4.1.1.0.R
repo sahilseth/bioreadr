@@ -168,7 +168,7 @@ mutect2.gatk4.1.1.0 <- function(
   
   # mutect outprefix (for final calls)
   outprefix,
-
+  
   #is_merged = TRUE,
   split_by_chr = TRUE,
   
@@ -183,6 +183,7 @@ mutect2.gatk4.1.1.0 <- function(
   mutect2.cpu = opts_flow$get('mutect2.cpu'),
   mutect2.mem = opts_flow$get("mutect2.mem"),
   mutect2.opts = opts_flow$get('mutect2.opts'),
+  mutect2.create_bam_out = opts_flow$get('mutect2.create_bam_out'),
   pon.m2.vcf = opts_flow$get("pon.m2.vcf"),
   
   germline_vcf = opts_flow$get('germline_variants.vcf'),
@@ -191,7 +192,8 @@ mutect2.gatk4.1.1.0 <- function(
   
   interval_split = opts_flow$get("capture.bi_wex_booster.intervals_split")
   
-  ){
+  
+){
   
   check_args(ignore = "outprefix")
   
@@ -207,7 +209,6 @@ mutect2.gatk4.1.1.0 <- function(
   
   #mutect_opts = "--artifact_detection_mode -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS -L $regions_bed_fl"
   mutect_vcfs = paste0(bamset$out_prefix_interval, ".mutect.vcf")
-  # mutect_bams = paste0(bamset$out_prefix_interval, ".mutect.bam")
   # -bamout {mutect_bams} 
   gatk_intervals = bamset$intervals
   cmd_mutect <- glue("tname=$(gatk GetSampleName -I {tumor_bam} -O /dev/stdout 2> /dev/null); ",
@@ -216,15 +217,20 @@ mutect2.gatk4.1.1.0 <- function(
                      "Mutect2 -R {ref.fasta} -I {tumor_bam} -I {normal_bam} ",
                      "-tumor $tname -normal $nname ",
                      "-pon {pon.m2.vcf} ",
+                     
+                     # ALL these have been added to mutect2.opts
+                     # this is critical for next filter steps
+                     # "--f1r2-tar-gz f1r2.tar.gz ",
                      # this is required for the new learnorientation model
-                     "--f1r2-tar-gz f1r2.tar.gz ",
                      # need brca1/2 variants, so emit germline ALSO, forcefully
                      # https://support.bioconductor.org/p/107739/,
-                     " --genotype-germline-sites ",
-                     "-A ReferenceBases ",
+                     # "--genotype-germline-sites ",
+                     # "-A ReferenceBases ",
+                     
                      "--germline-resource {germline_vcf} ",
                      "--native-pair-hmm-threads {mutect2.cpu} ",
                      "-O {mutect_vcfs} {mutect2.opts} {gatk_intervals}")
+  
   # cmd_mutect[17]
   # gatk --java-options "-Xmx2g" Mutect2 
   # -R hg38/Homo_sapiens_assembly38.fasta \
@@ -233,7 +239,7 @@ mutect2.gatk4.1.1.0 <- function(
   # --germline-resource resources/chr17_af-only-gnomad_grch38.vcf.gz \
   # --af-of-alleles-not-in-resource 0.0000025 --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
   # -L chr17plus.interval_list -O 1_somatic_m2.vcf.gz -bamout 2_tumor_normal_m2.bam 
-
+  
   # ** merge VCFs ---------
   mutect_vcf = paste0(outprefix, ".vcf.gz")
   mutect_vcfs_i = paste0(mutect_vcfs, collapse = " -I ")
@@ -243,13 +249,19 @@ mutect2.gatk4.1.1.0 <- function(
   cmd_mergevcf = glue("{gatk4.exe} --java-options {java.mem} GatherVcfs -I {mutect_vcfs_i} -O {mutect_vcf}; ", 
                       "bash ~/Dropbox/public/flow-r/my.ultraseq/pipelines/bin/m2_merge_vcf_stats.sh {mutect_vcf}.stats")
   
-  # ** gather bams ----
-  # mutect_bams_i = paste0(mutect_bams, collapse = " -I ");
-  # mutect_bam_o = paste0(bamset$out_prefix, "_mutect.bam")
-  # cmd_mutect_gather_bams <- glue("{gatk4_exe} --java-options {java_mem} GatherBamFiles ", 
-  #                         "-I {mutect_bams_i} -O {mutect_bam_o} --CREATE_INDEX true --CREATE_MD5_FILE true")
-  # cmd_mergevcf = c(cmd_mergevcf, cmd_mutect_gather_bams)
-
+  # this will be critical in ALL validation (in IGV)
+  if(mutect2.create_bam_out){
+    mutect_bams = paste0(bamset$out_prefix_interval, ".mutect.bam")
+    cmd_mutect = glue("{cmd_mutect} -bamout {mutect_bams}")
+    # ** gather bams ----
+    mutect_bams_i = paste0(mutect_bams, collapse = " -I ");
+    mutect_bam_o = paste0(outprefix, "_mutect.bam")
+    cmd_mutect_gather_bams <- glue("{gatk4.exe} --java-options {java.mem} GatherBamFiles ",
+                                   "-I {mutect_bams_i} -O {mutect_bam_o} --CREATE_INDEX true --CREATE_MD5_FILE true")
+    cmd_mergevcf = c(cmd_mergevcf, cmd_mutect_gather_bams)
+  }
+  
+  
   # ** contamination/pipelup;f1 ---------
   # best to use a set of biallelic calls
   # (maybe only chr1 is enough)
@@ -276,17 +288,17 @@ mutect2.gatk4.1.1.0 <- function(
   #' This produces a six-column table as shown. The alt_count is the count of reads that support the ALT allele in the germline resource. 
   #' The allele_frequency corresponds to that given in the germline resource. Counts for other_alt_count refer to reads that support all other alleles.
   cmd_cont = glue("{gatk4.exe} CalculateContamination -I {tumor_pileup} -matched {normal_pileup} ",
-                    "-O {tumor_cont_tab}")
+                  "-O {tumor_cont_tab}")
   cmd_cont
   
   mutect_filt1_vcf = paste0(outprefix, "_f1.vcf.gz")
   cmd_filter1 = glue("{gatk4.exe} FilterMutectCalls -V {mutect_vcf} -R {ref.fasta} --contamination-table {tumor_cont_tab} -O {mutect_filt1_vcf}")
   
-  # ** contamination/pipelup;f2 ---------
+  # ** contaminationf2 ---------
   #tumor_artifact = paste0(tumor_bam_prefix, "_seq_artifact")
   cmd_collect_seq_artifact = glue("{gatk4.exe} CollectSequencingArtifactMetrics -I {tumor_bam} ",
-                                   "-O {tumor_name} ", # –EXT '.txt' have some issue here
-                                   "-R {ref.fasta}")
+                                  "-O {tumor_name} ", # –EXT '.txt' have some issue here
+                                  "-R {ref.fasta}")
   cmd_collect_seq_artifact
   
   #' Second, perform orientation bias filtering with FilterByOrientationBias. 
@@ -295,7 +307,7 @@ mutect2.gatk4.1.1.0 <- function(
   #' The tool knows to include the reverse complement contexts
   #' https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_exome_FilterByOrientationBias.php
   mutect_filt2_vcf = paste0(outprefix, "_f2.vcf.gz")
-  cmd_filter2 = glue("{gatk4_exe} FilterByOrientationBias --artifact-modes 'G/T' --artifact-modes 'C/T' -V {mutect_filt1_vcf} ",
+  cmd_filter2 = glue("{gatk4.exe} FilterByOrientationBias --artifact-modes 'G/T' --artifact-modes 'C/T' -V {mutect_filt1_vcf} ",
                      "-P {tumor_name}.pre_adapter_detail_metrics -O {mutect_filt2_vcf}")
   
   cmds <- list(m2.splt = cmd_mutect, 
@@ -311,12 +323,12 @@ mutect2.gatk4.1.1.0 <- function(
     mutate(cmd = as.character(cmd))
   
   ret = list(flowmat=flowmat, 
-              outfiles = mutect_filt2_vcf, 
-              outfiles2 = c(mutect_filt2_vcf = mutect_filt2_vcf, 
-                            mutect_filt1_vcf = mutect_filt1_vcf,
-                            tumor_cont_tab = tumor_cont_tab,
-                            #mutect_bam = mutect_bam_o,
-                            mutect_vcf = mutect_vcf))
+             outfiles = mutect_filt2_vcf, 
+             outfiles2 = c(mutect_filt2_vcf = mutect_filt2_vcf, 
+                           mutect_filt1_vcf = mutect_filt1_vcf,
+                           tumor_cont_tab = tumor_cont_tab,
+                           #mutect_bam = mutect_bam_o,
+                           mutect_vcf = mutect_vcf))
   ret
   
 }
