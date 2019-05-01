@@ -71,7 +71,7 @@ opts_flow$set(
 #' 
 #' @param fastq1 character vector with full paths to fastq files for mate 1.
 #' @param fastq2 character vector
-#' @param bwa_mem_opts
+#' @param bwa_mem.opts
 #' 
 #' @return 
 #' A list, with cmds as one of the variables which
@@ -188,11 +188,11 @@ bwa.mem <- function(fqs1,
                     paired_end = opts_flow$get("paired_end"), ## auto detect it fastq2, is available
                     samplename = opts_flow$get("samplename"),
                     
-                    bwa_exe = opts_flow$get("bwa_exe"), 
-                    ref_bwa = opts_flow$get("ref_bwa"),
-                    bwa_mem_opts = opts_flow$get("bwa_mem_opts"),
-                    cpu_bwa_mem = opts_flow$get("bwa_mem.cpu"),
-                    samtools_exe = opts_flow$get("samtools_exe"),
+                    bwa_mem.exe = opts_flow$get("bwa_mem.exe"), 
+                    ref.bwa = opts_flow$get("ref.bwa"),
+                    bwa_mem.opts = opts_flow$get("bwa_mem.opts"),
+                    bwa_mem.cpu = opts_flow$get("bwa_mem.cpu"),
+                    samtools.exe = opts_flow$get("samtools.exe"),
                     execute = FALSE){
   ## ---- NOT implemented !
   
@@ -204,7 +204,7 @@ bwa.mem <- function(fqs1,
   ## as.logical was neccesary
   if(paired_end){
     if(missing(fqs2))
-      bwa_mem_opts = paste0(" -p ", bwa_mem_opts)
+      bwa_mem.opts = paste0(" -p ", bwa_mem.opts)
   }
   
   # These would be out files !. ALWAYS USE basename
@@ -212,15 +212,15 @@ bwa.mem <- function(fqs1,
   bam_prefix = gsub(".bam", "", bam_files)
   
   rgtag = get_rg(samplename)
-  bwa_mem_opts = paste0(bwa_mem_opts, " -R ", rgtag)
+  bwa_mem.opts = paste0(bwa_mem.opts, " -R ", rgtag)
   
   # GATK pipe: "bwa mem -K 100000000 -p -v 3 -t 16 -Y $bash_ref_fasta",
   if(!missing(fqs2)){
     cmd_mem <- sprintf("%s mem %s -t %s %s %s %s | %s sort -@ %s -o %s -",
-                       bwa_exe, bwa_mem_opts, cpu_bwa_mem, ref_bwa, fqs1, fqs2, samtools_exe, cpu_bwa_mem, bam_files)
+                       bwa_mem.exe, bwa_mem.opts, bwa_mem.cpu, ref.bwa, fqs1, fqs2, samtools.exe, bwa_mem.cpu, bam_files)
   }else{
     cmd_mem <- sprintf("%s mem %s -t %s %s %s | %s sort -@ %s -o %s -",
-                       bwa_exe, bwa_mem_opts, cpu_bwa_mem, ref_bwa, fqs1, samtools_exe, cpu_bwa_mem, bam_files)
+                       bwa_mem.exe, bwa_mem.opts, bwa_mem.cpu, ref.bwa, fqs1, samtools.exe, bwa_mem.cpu, bam_files)
   }
   
   if(execute){
