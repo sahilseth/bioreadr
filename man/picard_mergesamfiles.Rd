@@ -21,7 +21,7 @@ picard_mergesamfiles(bams, outfile,
 
 \item{java_exe}{path to java}
 
-\item{java_mem}{java memory}
+\item{java_mem}{java_memory}
 
 \item{java_tmp}{something}
 

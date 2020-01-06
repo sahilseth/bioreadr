@@ -4,7 +4,8 @@
 \alias{.mutect1_header}
 \title{##contig=<ID=20,length=62435964,assembly=B36,md5=f126cdf8a6e0c7f379d618ff66beb2da,species="Homo sapiens",taxonomy=x>',
 ##phasing=partial',
-##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP Membership">',}
+##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP Membership">',
+##INFO=<ID=TLOD,Number=1,Type=String,Description="CORE STATISTIC: Log of (likelihood tumor event is real / likelihood event is sequencing error )">',}
 \usage{
 .mutect1_header()
 }
@@ -12,4 +13,5 @@
 ##contig=<ID=20,length=62435964,assembly=B36,md5=f126cdf8a6e0c7f379d618ff66beb2da,species="Homo sapiens",taxonomy=x>',
 ##phasing=partial',
 ##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP Membership">',
+##INFO=<ID=TLOD,Number=1,Type=String,Description="CORE STATISTIC: Log of (likelihood tumor event is real / likelihood event is sequencing error )">',
 }

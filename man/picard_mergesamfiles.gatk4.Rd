@@ -7,9 +7,8 @@
 picard_mergesamfiles.gatk4(bams, outfile,
   samplename = opts_flow$get("samplename"),
   java_exe = opts_flow$get("java_exe"),
-  java_mem = opts_flow$get("java_mem"),
-  gatk4_jar = opts_flow$get("gatk4_jar"),
-  gatk4_opts = opts_flow$get("gatk4_opts"),
+  java_mem = opts_flow$get("java_mem_str"),
+  gatk4_exe = opts_flow$get("gatk4_exe"),
   mergesam_opts = "--ASSUME_SORTED --USE_THREADING --CREATE_INDEX")
 }
 \arguments{
@@ -21,13 +20,13 @@ picard_mergesamfiles.gatk4(bams, outfile,
 
 \item{java_exe}{path to java}
 
-\item{java_mem}{java memory}
+\item{java_mem}{java_memory}
 
-\item{gatk4_jar}{something}
-
-\item{gatk4_opts}{something}
+\item{gatk4_exe}{something}
 
 \item{mergesam_opts}{something}
+
+\item{gatk4.opts}{something}
 }
 \description{
 The resulting bam file is sorted and with a indexed created.

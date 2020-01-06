@@ -2,20 +2,22 @@
 % Please edit documentation in R/bam_set.R
 \name{bam_set}
 \alias{bam_set}
-\title{.depreciated}
+\title{bam_set}
 \usage{
-bam_set(bam, outprefix, ref.fasta, interval_split, split_by = c("none",
+bam_set(bam, outprefix, ref_fasta, interval_split, split_by = c("none",
   "chr_len", "interval_split"))
 }
 \arguments{
 \item{bam}{}
 
-\item{outfile}{}
+\item{outprefix}{}
 
-\item{ref_fasta_path}{}
+\item{ref_fasta}{}
 
-\item{split_by_chr}{}
+\item{interval_split}{}
+
+\item{split_by}{}
 }
 \description{
-.depreciated
+bam_set
 }

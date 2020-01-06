@@ -4,14 +4,13 @@
 \alias{htseq}
 \title{A wrapper around the RNASeq counting tool, htseq}
 \usage{
-htseq(bam, samplename, out_prefix,
-  htseq_exe = opts_flow$get("htseq_exe"),
+htseq(bam, samplename, outprefix, htseq_exe = opts_flow$get("htseq_exe"),
   htseq_opts = opts_flow$get("htseq_opts"), gtf = opts_flow$get("gtf"))
 }
 \arguments{
 \item{samplename}{samplename}
 
-\item{out_prefix}{output prefix to be used}
+\item{outprefix}{output prefix to be used}
 
 \item{htseq_opts}{options to be supplied to htseq, default retrieved using opts_flow$get("htseq_opts").}
 

@@ -2,7 +2,7 @@
 % Please edit documentation in R/vcf_parse.R
 \name{.read_vcf}
 \alias{.read_vcf}
-\title{adapted from john}
+\title{.depreciated}
 \usage{
 .read_vcf(fl, key = TRUE)
 }
@@ -12,5 +12,5 @@
 \item{key}{something}
 }
 \description{
-adapted from john
+.depreciated
 }

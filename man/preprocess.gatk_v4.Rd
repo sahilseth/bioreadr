@@ -7,16 +7,16 @@
 preprocess.gatk_v4(bam, outfile,
   samplename = opts_flow$get("samplename"),
   split_by_chr = opts_flow$get("split_by_chr"),
-  samtools_exe = opts_flow$get("samtools_exe"),
+  samtools_exe = opts_flow$get("samtools.exe"),
   java_exe = opts_flow$get("java_exe"),
-  java_mem = opts_flow$get("java_mem"),
+  java_mem = opts_flow$get("java_mem_str"),
   ref_fasta = opts_flow$get("ref_fasta"),
-  gatk_jar = opts_flow$get("gatk4_jar"),
-  gatk_opts = opts_flow$get("gatk4_opts"),
-  markdup_mem = opts_flow$get("gatk4_markdup.mem"),
-  markdup_opts = opts_flow$get("gatk4_picard_markdup_opts"),
-  baserecalib_mem = opts_flow$get("gatk4_baserecalib.mem"),
-  baserecalib_opts = opts_flow$get("gatk4_baserecalib_opts"),
+  gatk_jar = opts_flow$get("gatk4.jar"),
+  gatk_opts = opts_flow$get("gatk4.opts"),
+  markdup_mem = opts_flow$get("gatk4.markdup.mem"),
+  markdup_opts = opts_flow$get("gatk4.markdup.opts"),
+  baserecalib_mem = opts_flow$get("gatk4.baserecalib.mem"),
+  baserecalib_opts = opts_flow$get("gatk4.baserecalib.opts"),
   execute_cmds = FALSE)
 }
 \arguments{
@@ -34,7 +34,7 @@ preprocess.gatk_v4(bam, outfile,
 
 \item{execute_cmds}{run commands, after creation. Useful for testing/debugging and running on local platforms.}
 
-\item{java_tmp}{path to java tmp, can leave blank}
+\item{java_tmp}{path to java_tmp, can leave blank}
 
 \item{gatk_jar_path}{path to gatk jar file}
 

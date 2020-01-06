@@ -4,7 +4,7 @@
 \alias{paired_bam_set}
 \title{Create a single object, to be used by multiple modules}
 \usage{
-paired_bam_set(tumor_bam, normal_bam, out_prefix, is_merged, split_by_chr,
+paired_bam_set(tumor_bam, normal_bam, outprefix, is_merged, split_by_chr,
   ref_fasta_path = opts_flow$get("ref_fasta_path"))
 }
 \arguments{
@@ -12,7 +12,7 @@ paired_bam_set(tumor_bam, normal_bam, out_prefix, is_merged, split_by_chr,
 
 \item{normal_bam}{normal bam file}
 
-\item{out_prefix}{output prefix for paired sample analysis, example tumorname___normalname}
+\item{outprefix}{output prefix for paired sample analysis, example tumorname___normalname}
 
 \item{is_merged}{are bam files merged - single bam file for all chromosomes [TRUE/FALSE]}
 

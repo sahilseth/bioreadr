@@ -10,7 +10,7 @@ star.2.4.2a
 star.2.4.2a
 
 star(fq1, fq2, bam,
- samplename = "samp1", out_path, out_prefix,
+ samplename = "samp1", out_path, outprefix,
  ref_fasta = opts_flow$get("ref_fasta"), ref_star = opts_flow$get("ref_star"),
  star_exe = opts_flow$get("star_exe"), star_opts = opts_flow$get("star_opts"),
  star_cpu = opts_flow$get("star_cpu"))
@@ -26,7 +26,7 @@ star(fq1, fq2, bam,
 
 \item{out_path}{output path}
 
-\item{out_prefix}{output prefix}
+\item{outprefix}{output prefix}
 
 \item{ref_fasta}{path to reference genome in fasta format}
 

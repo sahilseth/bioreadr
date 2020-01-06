@@ -11,7 +11,7 @@ preprocess.gatk_v2(bam, outfile,
   java_tmp = opts_flow$get("java_tmp"),
   gatk_jar_path = opts_flow$get("gatk_jar_path"),
   picard_jar_path = opts_flow$get("picard_jar_path"),
-  samtools_exe = opts_flow$get("samtools_exe"), cpu_markdup = 1,
+  samtools_exe = opts_flow$get("samtools.exe"), cpu_markdup = 1,
   mem_markdup = opts_flow$get("mem_markdup"),
   cpu_target = opts_flow$get("cpu_target"),
   mem_target = opts_flow$get("mem_target"),
@@ -40,7 +40,7 @@ preprocess.gatk_v2(bam, outfile,
 
 \item{java_exe}{path to java}
 
-\item{java_tmp}{path to java tmp, can leave blank}
+\item{java_tmp}{path to java_tmp, can leave blank}
 
 \item{gatk_jar_path}{path to gatk jar file}
 
@@ -99,7 +99,7 @@ For RNA GATK recommends a additional step of split n trim, which is not currentl
 
 \strong{NOTE}:
 
-Some GATK tools use \href{https://www.broadinstitute.org/gatk/guide/article?id=1975}{CPU threads while others use data threads},
+Some GATK tools use \href{https://www.broadinstitute.org/gatk/guide/article?id=1975}{cpu threads while others use data threads},
 flowr tries to use efficiently make the best use of both/either depending on tool's compatibility.
 }
 \details{
