@@ -1,11 +1,11 @@
 
 
-splt_vcf_format <- function(x, format, prefix){
+splt_vcf_format <- function(x, format, prefix, .debug = F){
   x = as.character(unlist(x))
   format = as.character(unlist(format))
   
   lst <- lapply(1:length(x), function(i){
-    #message(".")
+    if(.debug) message(i)
     xi = x[i];formati = format[i]
     splt = strsplit(xi, ":")[[1]]
     nms = tolower(strsplit(formati, ":")[[1]])
@@ -81,8 +81,17 @@ read_vcf <- function(x, cores = 1){
   require(parallel)
   
   rlogging::message("Reading file...")
-  # use bedr (trusting them :)
-  vcf = bedr::read.vcf(x)
+  if(is.list(x)){
+    if(length(x$header) > 1){
+      message("using provided  bedr::vcf object")
+      vcf = x
+    }else{
+      stop("you supplied a list, however it is not a bedr object")
+    }
+  }else{
+    # use bedr (trusting them :)
+    vcf = bedr::read.vcf(x)
+  }
   # if(tools::file_ext(x) == "gz"){
   #   fl_con = gzfile(x)
   # }else{
@@ -154,6 +163,8 @@ parse_vcf = read_vcf
 #' @export
 read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   
+  check_args()
+  
   # rlogging::message("Reading file...")
   # add a read_vcf function
   vcf = read_vcf(x)
@@ -180,9 +191,9 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   vcf_header_info = vcf$header$INFO %>% data.frame(stringsAsFactors = F) %>% 
     mutate(colnm = paste0("info_", tolower(ID)))
   vcf_header_info_f1 = tidylog::filter(vcf_header_info, 
-                              Number %in% c(1, "A"), 
-                              Type %in% c("Integer", "Float"), 
-                              colnm %in% colnames(mat))
+                                       Number %in% c(1, "A"), 
+                                       Type %in% c("Integer", "Float"), 
+                                       colnm %in% colnames(mat))
   message("can auto-force following:\n", 
           paste0("\t", vcf_header_info_f1$colnm, collapse = "\n"))
   for(i in 1:nrow(vcf_header_info_f1)){
@@ -197,10 +208,10 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
     mutate(colnm_t = paste0("t_fmt_", "", tolower(ID)),
            colnm_n = paste0("n_fmt_", "", tolower(ID)))
   vcf_header_fmt_f1 = tidylog::filter(vcf_header_fmt, 
-                              Number %in% c(1, "A"), 
-                              Type %in% c("Integer", "Float"), 
-                             colnm_t %in% colnames(mat),
-                             colnm_n %in% colnames(mat))
+                                      Number %in% c(1, "A"), 
+                                      Type %in% c("Integer", "Float"), 
+                                      colnm_t %in% colnames(mat),
+                                      colnm_n %in% colnames(mat))
   message("can auto-force following:\n", 
           paste0("\t", vcf_header_fmt_f1$colnm_t, " ", vcf_header_fmt_f1$colnm_n, collapse = "\n"))
   for(i in 1:nrow(vcf_header_fmt_f1)){
@@ -212,44 +223,49 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   
   rlogging::message("auto split column type R ...")
   vcf_header_type_info_r = vcf_header_info %>% filter(Number == "R")
-  message("can split following ALLELE related vars:\n", 
-          paste0("\t", vcf_header_type_info_r$colnm, collapse = "\n"))
-  for(i in 1:nrow(vcf_header_type_info_r)){
-    df = vcf_header_type_info_r[i, ]
-    colfunc = .get_value_type(df$Type)
-    
-    # support upto three records
-    colnms_new = paste0(df$colnm, c("_ref", "_alt", "_alt2"))
-    # drop multi-allelic records
-    mat = tidyr::separate(mat, col = df$colnm, colnms_new, by = ",", extra = "drop", fill = "right", remove = F)
-    mat[, colnms_new] = colfunc(mat[, colnms_new])
-    
+  if(nrow(vcf_header_type_info_r) > 0 ){
+    message("can split following ALLELE related vars:\n", 
+            paste0("\t", vcf_header_type_info_r$colnm, collapse = "\n"))
+    for(i in 1:nrow(vcf_header_type_info_r)){
+      df = vcf_header_type_info_r[i, ]
+      colfunc = .get_value_type(df$Type)
+      
+      # support upto three records
+      colnms_new = paste0(df$colnm, c("_ref", "_alt", "_alt2"))
+      # drop multi-allelic records
+      mat = tidyr::separate(mat, col = df$colnm, colnms_new, by = ",", extra = "drop", fill = "right", remove = F)
+      mat[, colnms_new] = colfunc(mat[, colnms_new])
+      
+    }
   }
   
   vcf_header_fmt_r = vcf_header_fmt %>% filter(Number == "R")
-  for(i in 1:nrow(vcf_header_fmt_r)){
-    df = vcf_header_fmt_r[i, ]
-    colfunc = .get_value_type(df$Type)
-    
-    # support upto three records
-    colnms_t_new = paste0(df$colnm_t, c("_ref", "_alt", "_alt2"))
-    mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, by = ",", extra = "drop", fill = "right", remove = F)
-    # repeat for normal sample
-    colnms_n_new = paste0(df$colnm_n, c("_ref", "_alt", "_alt2"))
-    mat = tidyr::separate(mat, col = df$colnm_n, colnms_n_new, by = ",", extra = "drop", fill = "right", remove = F)
-    
-    # change col type:
-    mat[, colnms_t_new] = colfunc(mat[, colnms_t_new])
-    mat[, colnms_n_new] = colfunc(mat[, colnms_n_new])
-    
-    
+  if(nrow(vcf_header_fmt_r) > 0 ){
+    message("can split following ALLELE related vars:\n", 
+            paste0("\t", vcf_header_fmt_r$colnm_t, collapse = "\n"))
+    for(i in 1:nrow(vcf_header_fmt_r)){
+      df = vcf_header_fmt_r[i, ]
+      colfunc = .get_value_type(df$Type)
+      
+      # support upto three records
+      colnms_t_new = paste0(df$colnm_t, c("_ref", "_alt", "_alt2"))
+      mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, by = ",", extra = "drop", fill = "right", remove = F)
+      # repeat for normal sample
+      colnms_n_new = paste0(df$colnm_n, c("_ref", "_alt", "_alt2"))
+      mat = tidyr::separate(mat, col = df$colnm_n, colnms_n_new, by = ",", extra = "drop", fill = "right", remove = F)
+      
+      # change col type:
+      mat[, colnms_t_new] = colfunc(mat[, colnms_t_new])
+      mat[, colnms_n_new] = colfunc(mat[, colnms_n_new])
+    }
   }
   
+  mat %<>% mutate(key = glue("{chrom}:{pos}_{ref}/{alt}"))
   
   head(mat)
   
   
-    
+  
   # cols_info_int =  %>% 
   #   filter(Number == 1, Type == "Integer")
   
@@ -287,6 +303,91 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
 }
 
 
+#' Parse a somatic VCF, with two samples.
+#'
+#' @param x a vcf file
+#' @param samp name of the 'tumor' sample
+#' @param ref name of the 'reference' sample
+#'
+#' @export
+read_vcf_germline <- function(x, samp = NULL){
+  
+  # rlogging::message("Reading file...")
+  # add a read_vcf function
+  vcf = read_vcf(x)
+  mat = vcf$tab
+  
+  if(is.null(samp)){
+    samp = vcf$header$tumor_sample
+    message("samp missing, extracting from vcf")
+  }
+  check_args()
+  
+  colnms = colnames(mat)
+  colnms_new = gsub(paste0(tolower(samp), "_"), "", colnms)
+  colnames(mat) = colnms_new
+  head(mat)
+  
+  rlogging::message("auto force column info type ...")
+  vcf_header_info = vcf$header$INFO %>% data.frame(stringsAsFactors = F) %>% 
+    mutate(colnm = paste0("info_", tolower(ID)))
+  vcf_header_info_f1 = tidylog::filter(vcf_header_info, 
+                                       Number %in% c(1, "A"), 
+                                       Type %in% c("Integer", "Float"), 
+                                       colnm %in% colnames(mat))
+  message("can auto-force following:\n", 
+          paste0("\t", vcf_header_info_f1$colnm, collapse = "\n"))
+  for(i in 1:nrow(vcf_header_info_f1)){
+    df = vcf_header_info_f1[i, ]
+    colfunc = .get_value_type(df$Type)
+    colnm = df$colnm
+    mat[, colnm] = colfunc(mat[, colnm])
+  }
+  
+  rlogging::message("auto force column fmt type ...")
+  vcf_header_fmt = vcf$header$FORMAT %>% data.frame(stringsAsFactors = F) %>% 
+    mutate(colnm = paste0("fmt_", "", tolower(ID)))
+  vcf_header_fmt_f1 = tidylog::filter(vcf_header_fmt, 
+                                      Number %in% c(1, "A"), 
+                                      Type %in% c("Integer", "Float"), 
+                                      colnm %in% colnames(mat))
+  message("can auto-force following:\n", 
+          paste0("\t", vcf_header_fmt_f1$colnm, collapse = "\n"))
+  for(i in 1:nrow(vcf_header_fmt_f1)){
+    df = vcf_header_fmt_f1[i, ]
+    colfunc = .get_value_type(df$Type)
+    mat[, df$colnm] = colfunc(mat[, df$colnm])
+  }
+  
+  rlogging::message("auto split column type R ...")
+  vcf_header_type_r = bind_rows(vcf_header_info, 
+                                vcf_header_fmt) %>% 
+    tidylog::filter(Number == "R")
+  message("can split following ALLELE related vars:\n", 
+          paste0("\t", vcf_header_type_r$colnm, collapse = "\n"))
+  for(i in 1:nrow(vcf_header_type_r)){
+    df = vcf_header_type_r[i, ]
+    colfunc = .get_value_type(df$Type)
+    # support upto three records
+    colnms_new = paste0(df$colnm, c("_ref", "_alt", "_alt2"))
+    # drop multi-allelic records
+    mat = tidyr::separate(mat, col = df$colnm, colnms_new, by = ",", extra = "drop", fill = "right", remove = F)
+    mat[, colnms_new] = colfunc(mat[, colnms_new])
+  }
+  mat %<>% mutate(key = glue("{chrom}:{pos}_{ref}/{alt}"))
+  
+  head(mat)
+  return(list(vcf = vcf$vcf, tab = mat, header = vcf$header))
+}
+
+if(FALSE){
+  # ** try germ vcf -------
+  x ="/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ponm/vcfs/WEX-1004-N.vcf.gz"
+  
+  
+}
+
+
 if(FALSE){
   library(pacman)
   p_load(dplyr, janitor, glue, magrittr)
@@ -309,8 +410,8 @@ if(FALSE){
   rds_m2 = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/mutect2/WEX-334187-T___matched_f1_cleannms_snp.rds"
   # debug(read_vcf_somatic);#debug(parse_vcf)
   vcf = read_vcf_somatic(fl_m2, 
-                        samp = '334187-T', 
-                        ref = '334187-N')
+                         samp = '334187-T', 
+                         ref = '334187-N')
   write_rds(vcf, rds_m2)
   
   
@@ -362,7 +463,7 @@ if(FALSE){
   source('~/Dropbox/projects/packs_dnaseq/R/igv_snapshot.R')
   source('~/Dropbox/public/github_wranglr/R/expect_columns.R')
   bams = c("/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/bams/WEX-334187-N_nochr.bam",
-          "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/bams/WEX-334187-T_nochr.bam")
+           "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/bams/WEX-334187-T_nochr.bam")
   # debug(get_igv_snap)
   get_igv_snap(df_igv, 
                input_type = "bed",

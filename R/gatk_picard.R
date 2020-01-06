@@ -13,10 +13,10 @@
 #' @param outfile name of the merged bam file
 #' @param samplename something
 #' @param java_exe path to java
-#' @param gatk4.exe something
+#' @param gatk4_exe something
 #' @param gatk4.opts something
 #' @param mergesam_opts something
-#' @param java_mem java memory
+#' @param java_mem java_memory
 #'
 #' @export
 #' 
@@ -28,9 +28,9 @@
 picard_mergesamfiles.gatk4 <- function(bams,
                                        outfile,
                                        samplename = opts_flow$get("samplename"),
-                                       java.exe = opts_flow$get("java.exe"),
-                                       java.mem = opts_flow$get("java.mem_str"),
-                                       gatk4.exe = opts_flow$get("gatk4.exe"),
+                                       java_exe = opts_flow$get("java_exe"),
+                                       java_mem = opts_flow$get("java_mem_str"),
+                                       gatk4_exe = opts_flow$get("gatk4_exe"),
                                        # gatk4.opts = opts_flow$get("gatk4.opts"),
                                        mergesam_opts = "--ASSUME_SORTED --USE_THREADING --CREATE_INDEX"
 ){
@@ -40,7 +40,7 @@ picard_mergesamfiles.gatk4 <- function(bams,
   check_args()
   
   bam_list = paste("--INPUT ", bams, sep = "", collapse = " ")
-  cmds = list(merge = glue("{gatk4.exe} --java-options {java.mem} MergeSamFiles {bam_list} --OUTPUT {outfile} {mergesam_opts}"))
+  cmds = list(merge = glue("{gatk4_exe} --java-options {java_mem} MergeSamFiles {bam_list} --OUTPUT {outfile} {mergesam_opts}"))
   
   # INPUT is a NAMED list
   flowmat = to_flowmat(cmds, samplename)

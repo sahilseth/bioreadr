@@ -4,7 +4,7 @@
 #'
 #' @param bam 
 #' @param outprefix 
-#' @param ref.fasta 
+#' @param ref_fasta 
 #' @param interval_split 
 #' @param split_by 
 #'
@@ -14,7 +14,7 @@
 #' @examples
 bam_set <- function(bam, 
                     outprefix, 
-                    ref.fasta, 
+                    ref_fasta, 
                     interval_split,
                     split_by = c("none", "chr_len", "interval_split")){
   
@@ -29,23 +29,23 @@ bam_set <- function(bam,
   # determine output file name
   if(missing(outprefix)){
     message("using bamname as outprefix")
-    obj$out_prefix <- gsub(".bam", "", basename(bam))
+    obj$outprefix <- gsub(".bam", "", basename(bam))
   }else{
-    obj$out_prefix <- outprefix
+    obj$outprefix <- outprefix
   }
   
   # if file is available determine whether to split for faster processing
-  tmp <- get_fasta_chrs(ref.fasta)
+  tmp <- get_fasta_chrs(ref_fasta)
   obj$chr_names = tmp$chrs
   obj$chr_lengths = tmp$lens
   
   if(split_by == "chr_len"){
     # bam names
-    obj$out_prefix_chr <- paste(obj$out_prefix , obj$chr_names, sep = "_") 
+    obj$outprefix_chr <- paste(obj$outprefix , obj$chr_names, sep = "_") 
     
     # get intervals, using length
     intervals = get_gatk_intervals(obj)
-    obj$out_prefix_interval = 1:length(intervals) # interval files
+    obj$outprefix_interval = 1:length(intervals) # interval files
     intervals = lapply(intervals, function(x){
       paste(paste0(" -L ", x),collapse = "")
       })
@@ -54,11 +54,11 @@ bam_set <- function(bam,
   }else if(split_by == "interval_split"){
     intervals = list.files(interval_split, pattern = ".interval_list", full.names = T)
     obj$intervals = paste0(" -L ", intervals)
-    obj$out_prefix_interval = sprintf("%s_%03d", obj$out_prefix, 1:length(intervals))
+    obj$outprefix_interval = sprintf("%s_%03d", obj$outprefix, 1:length(intervals))
 
   }else if(split_by == "none"){
     
-    obj$out_prefix_chr = obj$out_prefix 
+    obj$outprefix_chr = obj$outprefix 
     obj$gatk_intervals = ""
     
   }
@@ -130,7 +130,7 @@ if(FALSE){
 
 # create a definitive out prefix
 # samplename, may not always be unique, using bams is better
-# determine output file name, if out_prefix is not provided
+# determine output file name, if outprefix is not provided
 
 
 # this is shared, by ALL callers
@@ -138,7 +138,7 @@ if(FALSE){
 #'
 #' @param tumor_bam tumor bam file
 #' @param normal_bam normal bam file
-#' @param out_prefix output prefix for paired sample analysis, example tumorname___normalname
+#' @param outprefix output prefix for paired sample analysis, example tumorname___normalname
 #' @param is_merged are bam files merged - single bam file for all chromosomes [TRUE/FALSE]
 #' @param split_by_chr should downstream analysis be split by chr.
 #' @param ref_fasta_path path to reference fasta file
@@ -148,21 +148,21 @@ if(FALSE){
 #'
 paired_bam_set <- function(tumor_bam, 
                            normal_bam,
-                           out_prefix,
+                           outprefix,
                            is_merged,
                            split_by_chr,
                            ref_fasta_path = opts_flow$get('ref_fasta_path')
                            
 ){
   
-  check_args(ignore = "out_prefix")
+  check_args(ignore = "outprefix")
   
   obj = list()
   
   
   obj$split_by_chr = split_by_chr
   
-  obj$out_prefix_chr = ""
+  obj$outprefix_chr = ""
   
   # check number of tumor and normal: should be same
   # if number of tumor/normal more than 1, is_merged should be FALSE
@@ -184,14 +184,14 @@ paired_bam_set <- function(tumor_bam,
   }
   
   
-  if(obj$bam$len > 1 & missing(out_prefix))
-    stop(">> multiple bams supplied, and out_prefix is missing")
+  if(obj$bam$len > 1 & missing(outprefix))
+    stop(">> multiple bams supplied, and outprefix is missing")
   
-  if(obj$bam$len == 1 & missing(out_prefix))
-    obj$out_prefix <- paste0(gsub(".bam", "", basename(tumor_bam)), "__", 
+  if(obj$bam$len == 1 & missing(outprefix))
+    obj$outprefix <- paste0(gsub(".bam", "", basename(tumor_bam)), "__", 
                              gsub(".bam", "", basename(normal_bam)))
   else
-    obj$out_prefix = out_prefix
+    obj$outprefix = outprefix
   
   ## if file is available determine whether to split for faster processing
   tmp <- get_fasta_chrs(ref_fasta_path)
@@ -199,11 +199,11 @@ paired_bam_set <- function(tumor_bam,
   obj$chr_lengths = tmp$lens
   
   if(split_by_chr){
-    obj$out_prefix_chr <- paste0(obj$out_prefix, "_", obj$chr_names) # bam names
+    obj$outprefix_chr <- paste0(obj$outprefix, "_", obj$chr_names) # bam names
     obj$gatk_intervals = paste0(" -L ", obj$chr_names)             ## interval files
     
   }else{
-    obj$out_prefix_chr = obj$out_prefix 
+    obj$outprefix_chr = obj$outprefix 
     obj$gatk_intervals = ""
   }
   

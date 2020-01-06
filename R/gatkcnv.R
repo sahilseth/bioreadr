@@ -55,16 +55,16 @@
 # -select-type SNP -restrict-alleles-to BIALLELIC \
 # -select "AF > ${minimum_allele_frequency}"
 
-source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
+# source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
 
 .collect_read_counts <- function(bam, 
                                  counts,
-                                 gatkcnv.intervals = opts_flow$get("gatkcnv.intervals"),
-                                 gatk4.exe = opts_flow$get("gatk4.exe"),
+                                 gatkcnv_intervals = opts_flow$get("gatkcnv_intervals"),
+                                 gatk4_exe = opts_flow$get("gatk4_exe"),
                                  redo = F, 
                                  test = F){
   check_args()
-  cmd = glue("{gatk4.exe} CollectReadCounts -I {bam} -L {gatkcnv.intervals} -O {counts} --format TSV --interval-merging-rule OVERLAPPING_ONLY")
+  cmd = glue("mkdir -p `dirname {counts}`;{gatk4_exe} --java-options '-Xmx32g' CollectReadCounts -I {bam} -L {gatkcnv_intervals} -O {counts} --format TSV --interval-merging-rule OVERLAPPING_ONLY")
   
   if(test) return(cmd)
   # else, actually run the cmd
@@ -75,13 +75,13 @@ source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
 .denoise_counts <- function(counts,
                             std_cr,
                             dn_cr,
-                            gatkcnv.pon.hdfs = opts_flow$get("gatkcnv.pon.hdfs"),
-                            gatk4.exe = opts_flow$get("gatk4.exe"),
+                            gatkcnv_pon_hdfs = opts_flow$get("gatkcnv_pon_hdfs"),
+                            gatk4_exe = opts_flow$get("gatk4_exe"),
                             redo = F, 
                             test = F){
   check_args()
-  cmd = glue("{gatk4.exe} --java-options '-Xmx12g' DenoiseReadCounts ", 
-             "-I {counts} --count-panel-of-normals {gatkcnv.pon.hdfs} ",
+  cmd = glue("{gatk4_exe} --java-options '-Xmx12g' DenoiseReadCounts ", 
+             "-I {counts} --count-panel-of-normals {gatkcnv_pon_hdfs} ",
              "--standardized-copy-ratios {std_cr} ",
              "--denoised-copy-ratios {dn_cr}")
   
@@ -94,40 +94,43 @@ source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
 .plot_denoise_cr <- function(std_cr,
                              dn_cr,
                              outprefix,
-                             ref.dict = opts_flow$get("ref.dict"),
-                             gatk4.exe = opts_flow$get("gatk4.exe"),
+                             ref_dict = opts_flow$get("ref_dict"),
+                             gatk4_exe = opts_flow$get("gatk4_exe"),
+                             java_tmp = opts_flow$get("java_tmp"),
                              plot_minimum_contig_length = "46709983",
                              redo = F, 
                              test = F){
   
   check_args();cmdname = "plot_denoise_cr"
-  cmd = glue("{gatk4.exe} --java-options '-Xmx12g' PlotDenoisedCopyRatios ", 
+  cmd = glue("{gatk4_exe} --java-options '-Xmx12g -Djava.io.tmpdir={java_tmp}' PlotDenoisedCopyRatios ", 
              "--standardized-copy-ratios {std_cr} ",
              "--denoised-copy-ratios {dn_cr} ",
-             "--sequence-dictionary {ref.dict} ",
+             "--sequence-dictionary {ref_dict} ",
              "--minimum-contig-length 46709983 ",
              "--output . ",
              "--output-prefix {outprefix}")
   if(test) return(cmd)
   # else, actually run the cmd
   outplot = glue("{outprefix}.denoisedLimit4.png")
-  run_cmd(cmd, target = outplot, cmdname = cmdname, stderr = glue("{outprefix}_{cmdname}.log"), redo = redo)
+  run_cmd(cmd, target = outplot, cmdname = cmdname, 
+          stderr = glue("{outprefix}_{cmdname}.log"), redo = redo)
+  
 }
 
 
 
 .collect_allelic_counts <- function(bam,
                                     acounts,
-                                    gatk4.exe = opts_flow$get("gatk4.exe"),
-                                    ref.fasta = opts_flow$get("ref.fasta"),
-                                    germline_variants.biallelic_vcf = opts_flow$get("germline_variants.biallelic_vcf"),
+                                    gatk4_exe = opts_flow$get("gatk4_exe"),
+                                    ref_fasta = opts_flow$get("ref_fasta"),
+                                    germline_variants_biallelic_vcf = opts_flow$get("germline_variants_biallelic_vcf"),
                                     redo = F, 
                                     test = F){
   check_args()
-  cmd = glue("{gatk4.exe} --java-options '-Xmx32g' CollectAllelicCounts ", 
-             "-L {germline_variants.biallelic_vcf} ", 
+  cmd = glue("mkdir -p `dirname {acounts}`;{gatk4_exe} --java-options '-Xmx32g' CollectAllelicCounts ", 
+             "-L {germline_variants_biallelic_vcf} ", 
              "-I {bam} ", 
-             "-R {ref.fasta} ", 
+             "-R {ref_fasta} ", 
              "-O {acounts}")
   if(test) return(cmd)
   # else, actually run the cmd
@@ -150,9 +153,9 @@ source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
                             # output of CallCopyRatioSegments
                             called_seg,
                             
-                            gatk4.exe = opts_flow$get("gatk4.exe"),
-                            ref.dict = opts_flow$get("ref.dict"),
-                            # ref.fasta = opts_flow$get("ref.fasta"),
+                            gatk4_exe = opts_flow$get("gatk4_exe"),
+                            ref_dict = opts_flow$get("ref_dict"),
+                            # ref_fasta = opts_flow$get("ref_fasta"),
                             plot_minimum_contig_length = "46709983",
                             
                             gatkcnv_modelseg_params = "--minimum-total-allele-count 30 --maximum-number-of-smoothing-iterations 100 ",
@@ -160,7 +163,7 @@ source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
                             test = F){
   
   check_args(ignore = "normal_acounts")
-  cmd1 = glue("{gatk4.exe} --java-options '-Xmx16g' ModelSegments ", 
+  cmd1 = glue("{gatk4_exe} --java-options '-Xmx16g' ModelSegments ", 
              "--allelic-counts {acounts} ",
              "--denoised-copy-ratios {dn_cr} ",
              # 30 is default: alleleic copy ratios
@@ -173,14 +176,14 @@ source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
   }
   
   # not sure about the outputs of this one
-  cmd2 = glue("{gatk4.exe} --java-options '-Xmx16g' CallCopyRatioSegments ", 
+  cmd2 = glue("{gatk4_exe} --java-options '-Xmx16g' CallCopyRatioSegments ", 
              "--input {cr_seg} --output {called_seg}")
   
-  cmd3 = glue("{gatk4.exe} --java-options '-Xmx16g' PlotModeledSegments ", 
+  cmd3 = glue("{gatk4_exe} --java-options '-Xmx16g' PlotModeledSegments ", 
               "--denoised-copy-ratios {dn_cr} ", 
               "--allelic-counts {hets} ", 
               "--segments {final_seg} ", 
-              "--sequence-dictionary {ref.dict} ", 
+              "--sequence-dictionary {ref_dict} ", 
               "--minimum-contig-length {46709983} ", 
               "--output . ", 
               "--output-prefix {outprefix}")
@@ -309,7 +312,7 @@ gatkcnv_somatic_matched <- function(trk,
                                     test = T
                                     ){
   # check generic columns
-  trk = check_dnaseq_metadata(trk)
+  trk = metadata_for_dnaseq_tools(trk)
   expect_columns(trk, c("outprefix", "outprefix_paired"))
 
   # ceate a new trk with ALL reqd files
@@ -448,7 +451,7 @@ if(FALSE){
   # ** load vars --------
   opts_flow$load("~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/ss_cl_het/somatic_snv_indels.conf")
   opts_flow$set(
-    gatk4.exe = "$HOME/apps/gatk/gatk-4.1.1.0/gatk",
+    gatk4_exe = "$HOME/apps/gatk/gatk-4.1.1.0/gatk",
     gatk_intervals = "$HOME/ref/az_ref_beds/hg19/bed/Exome-NGv3_gatk.intervals",
     # pon_counts = "$HOME/ref/human/b37/common_normal/ms51_v1/gatkcnv_pon/v1_sfq/cnvponC.pon.hdf5",
     pon_counts = "$HOME/ref/human/b37/common_normal/ms51_v1/gatkcnv_pon/cnvpon_ms51_tier1_tier2.pon.hdf5",
@@ -467,8 +470,8 @@ if(FALSE){
   # tmp = mclapply(cmd_transfer, system, mc.cores = 4)
   
   # ** full pipe ------
-  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
-  source('~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/ss_cl_het/gatkcnv.R')
+  source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/run_cmd.R')
+  source('~/Dropbox/public/flowr/my.ultraseq/pipelines/dnaseq/ss_cl_het/gatkcnv.R')
   gatkcnv_somatic(df_trk, num_cores = 1)
   
   
@@ -523,6 +526,130 @@ gatkcnv_germline <- function(){
 
 
 
+
+"Support for Copy Number Variations (CNVs) with GATK4
+https://software.broadinstitute.org/gatk/documentation/article?id=11682
+https://gatkforums.broadinstitute.org/dsde/discussion/11683/
+
+https://gatkforums.broadinstitute.org/gatk/discussion/7387/description-and-examples-of-the-steps-in-the-acnv-case-workflow
+"
+
+# prepare intervals:
+
+# 1. Collect raw counts data with PreprocessIntervals and CollectFragmentCounts
+# Before collecting coverage counts that forms the basis of copy number variant detection, we define the resolution of the analysis with a genomic intervals list. The extent of genomic coverage and the size of genomic intervals in the intervals list factor towards resolution.
+# 
+# Preparing a genomic intervals list is necessary whether an analysis is on targeted exome data or whole genome data. In the case of exome data, we pad the target regions of the capture kit. In the case of whole genome data, we divide the reference genome into equally sized intervals or bins. In either case, we use PreprocessIntervals to prepare the intervals list.
+# 
+# For the tutorial exome data, we provide the capture kit target regions in 1-based intervals and set --bin-length to zero.
+
+# gatk PreprocessIntervals \
+# -L targets_C.interval_list \
+# -R /gatk/ref/Homo_sapiens_assembly38.fasta \
+# --bin-length 0 \
+# --interval-merging-rule OVERLAPPING_ONLY \
+# -O sandbox/targets_C.preprocessed.interval_list
+
+
+
+
+# ![](https://us.v-cdn.net/5019796/uploads/editor/3z/gim58s5j2wmk.png)
+
+# cnv-C: panel of normals for cnv really helps
+# this is a critical part here
+# used for 
+
+# Step 1. Het Pulldown
+# ** These instructions describe one method for Het Pulldown for matched samples. For more options, including tumor-only, please see: http://gatkforums.broadinstitute.org/gatk/discussion/7719/overview-of-getbayesianhetcoverage-for-heterozygous-snp-calling **
+#   
+#   Inputs
+# control_bam -- BAM file for control sample (normal).
+# case_bam -- BAM file for case sample (tumor).
+# reference_sequence -- FASTA file for b37 reference.
+# snp_file -- Picard interval list of common SNP sites at which to test for heterozygosity in the control sample .
+# Outputs
+# normal_het_pulldown -- TSV file with M entries containing ref/alt counts, ref/alt bases, etc., where M is the number of hets called in the control sample.
+# tumor_het_pulldown -- TSV file with M entries containing ref/alt counts, ref/alt bases, etc. for sites in the case sample that were called as het in the control sample, where M is the number of hets called in the control sample.
+# Format for both output files:
+#   
+#   CONTIG  POSITION        REF_COUNT       ALT_COUNT       REF_NUCLEOTIDE  ALT_NUCLEOTIDE  READ_DEPTH
+# 1       809876  5       16      A       G       21
+# 1       881627  23      12      G       A       35
+# 1       882033  9       10      G       A       19
+# 1       900505  26      24      G       C       50
+# ....snip....
+# Invocation
+# java -jar <path_to_gatk_protected_jar> GetBayesianHetCoverage --reference <reference_sequence>
+#   --snpIntervals <snp_file> --tumor <case_bam> --tumorHets <tumor_het_pulldown> --normal <control_bam>
+#   --normalHets <normal_het_pulldown> --hetCallingStringency 30
+
+# Step 2. Allelic CNV
+# Inputs
+# tumor_het_pulldown -- Generated in step 1.
+# coverage_profile -- Tangent-normalized coverage TSV file obtained in the GATK CNV case workflow.
+# called_segments -- Called-segments TSV file obtained in the GATK CNV case workflow.
+# output_prefix -- Path and file prefix for creating the output files. For example, /home/lichtens/my_acnv_output/sample1
+# Outputs
+# acnv_segments -- TSV file with name ending with -sim-final.seg containing posterior summary statistics for log_2 copy ratio and minor-allele fraction in each segment. Using the above output_prefix, /home/lichtens/my_acnv_output/sample1-sim-final.seg
+# acnv_cr_parameters -- TSV file with name ending with -sim-final.cr.param containing posterior summary statistics for global parameters of the copy-ratio model. Using the above output_prefix, /home/lichtens/my_acnv_output/sample1-sim-final.cr.param
+# acnv_af_parameters -- TSV file with name ending with -sim-final.af.param containing posterior summary statistics for global parameters of the allele-fraction model. Using the above output_prefix, /home/lichtens/my_acnv_output/sample1-sim-final.af.param
+# Other files containing intermediate results of the calculation are also generated.
+# 
+# Invocation
+# java -Xmx8g -jar <path_to_gatk_protected_jar> AllelicCNV  --tumorHets <tumor_het_pulldown>
+#   --tangentNormalized <coverage_profile> --segments <called_segments> --outputPrefix <output_prefix>
+#   Step 3. Call CNLoH and Balanced Segments
+# ** WARNING: This tool is experimental and exists primarily for internal Broad use. **
+#   
+#   Inputs
+# tumor_het_pulldown -- Generated in step 1.
+# acnv_segments -- Generated in step 2 (*-sim-final.seg).
+# coverage_profile -- Tangent-normalized coverage TSV file obtained in the GATK CNV case workflow
+# output_dir -- Directory for creating the output files. For example, /home/lichtens/my_acnv_cnlohcalls_output/
+#   Outputs
+# GATK-CNV-formatted seg file -- TSV file ending with -sim-final.cnv.seg. This file is formatted identically as the output of GATK CNV. Note that this implies that the allelic fraction values are not captured in this file.
+# AllelicCapSeg-formatted seg file -- TSV file ending with -sim-final.acs.seg. This file is formatted identically as the output of Broad CGA AllelicCapSeg. Note that this file can be used as input to Broad-internal versions of ABSOLUTE.
+# TITAN-compatible het file --TSV file ending with -sim-final.titan.het.tsv. This file can be used as the input to TITAN for the het read counts.
+# TITAN-compatible copy-ratio file -- TSV file ending with -sim-final.titan.tn.tsv. This file can be used as the input to TITAN for the per-target copy-ratio estimates.
+# Invocation
+# java -Xmx8g -jar <path_to_gatk_protected_jar> CallCNLoHAndSplits  --tumorHets <tumor_het_pulldown>
+#   --segments <acnv_segments> --tangentNormalized <coverage_profile> --outputDir <output_dir>
+#   --rhoThreshold 0.2 --numIterations 10  --sparkMaster local[*]  
+
+# def _titan_cn_file(cnr_file, work_dir, data):
+#   """Convert CNVkit or GATK4 normalized input into TitanCNA ready format.
+#     """
+# out_file = os.path.join(work_dir, "%s.cn" % (utils.splitext_plus(os.path.basename(cnr_file))[0]))
+# support_cols = {"cnvkit": ["chromosome", "start", "end", "log2"],
+#   "gatk-cnv": ["CONTIG", "START", "END", "LOG2_COPY_RATIO"]}
+# cols = support_cols[cnvkit.bin_approach(data)]
+# if not utils.file_uptodate(out_file, cnr_file):
+#   with file_transaction(data, out_file) as tx_out_file:
+#   iterator = pd.read_table(cnr_file, sep="\t", iterator=True, header=0, comment="@")
+# with open(tx_out_file, "w") as handle:
+#   for chunk in iterator:
+#   chunk = chunk[cols]
+# chunk.columns = ["chrom", "start", "end", "logR"]
+# if cnvkit.bin_approach(data) == "cnvkit":
+#   chunk['start'] += 1
+# chunk.to_csv(handle, mode="a", sep="\t", index=False)
+# return out_file
+
+
+# def _titan_het_file(vrn_files, work_dir, paired):
+#   assert vrn_files, "Did not find compatible variant calling files for TitanCNA inputs"
+# from bcbio.heterogeneity import bubbletree
+# class OutWriter:
+#   def __init__(self, out_handle):
+#   self.writer = csv.writer(out_handle, dialect="excel-tab")
+# def write_header(self):
+#   self.writer.writerow(["Chr", "Position", "Ref", "RefCount", "Nref", "NrefCount", "NormQuality"])
+# def write_row(self, rec, stats):
+#   if rec.qual and float(rec.qual) > 0:
+#   self.writer.writerow([rec.chrom, rec.pos, rec.ref, stats["tumor"]["depth"] - stats["tumor"]["alt"],
+#                         rec.alts[0], stats["tumor"]["alt"], rec.qual])
+# return bubbletree.prep_vrn_file(vrn_files[0]["vrn_file"], vrn_files[0]["variantcaller"],
+#                                 work_dir, paired, OutWriter)
 
 
 

@@ -35,11 +35,11 @@
 
 source('~/Dropbox/public/github_wranglr/R/expect_columns.R')
 
-check_dnaseq_metadata <- function(trk, 
-                                  normalize_file_names = F,
-                                  basename_of_files = normalize_file_names,
-                                  stage = "none",
-                                  check_files_exist = F){
+metadata_for_dnaseq <- function(trk, 
+                                      normalize_file_names = F,
+                                      basename_of_files = normalize_file_names,
+                                      stage = "none",
+                                      check_files_exist = F){
   
   pacman::p_load(testit)
   
@@ -50,7 +50,10 @@ check_dnaseq_metadata <- function(trk,
   trk %<>% clean_names()
   
   # flexible to allow pairs, and multiple normals
-  expect_columns(trk, c("individual", "name", "sampletype", "normal", "bam"))
+  expect_columns(trk, c("individual", "name", "normal", "bam"))
+  # extra for longitudinal data
+  # expect_columns(trk, "sampletype")
+  expect_columns(trk, "timepoint")
   
   if(stage == "variants_called"){
     .check_variant_columns(trk, normalize_file_names)
@@ -60,8 +63,14 @@ check_dnaseq_metadata <- function(trk,
   trk
 }
 
-as_dnaseq_metadata = check_dnaseq_metadata
+check_dnaseq_metadata <- function(...){
+  .Deprecated("metadata_for_dnaseq")
+  metadata_for_dnaseq(...)
+}
 
+metadata_for_dnaseq_tools = metadata_for_dnaseq
+as_dnaseq_metadata = metadata_for_dnaseq_tools
+as_dnaseq_metadata = check_dnaseq_metadata
 .check_variant_columns <- function(trk, basename_of_files = F){
   
   # bam file should already have been transferred
@@ -92,7 +101,24 @@ as_dnaseq_metadata = check_dnaseq_metadata
   trk
 }
 
+.check_single_individual <- function(trk){
+  # make sure it is a single individial
+  inds = unique(trk$individual)
+  if(length(inds) > 1)
+    rlogging::warning("There are multiple individuals listed in the tracking sheet.\n", 
+                      "This tool assumes all the tumor bams are from the same individual")
+  
+  trk
+}
 
+
+metadata_for_mutect1 <- function(trk, ...){
+  metadata_for_dnaseq_tools(trk, ...)
+  
+  .check_single_individual(trk)
+  
+  
+}
 
 metadata_for_pyclone <- function(){
   

@@ -1,19 +1,32 @@
 # transfer out  ----
 
+#' copy_data_base
+#'
+#' @param fls 
+#' @param out_dir 
+#' @param transfer 
+#'
+#' @export
 copy_data_base <- function(fls, 
                            out_dir, 
                            transfer = FALSE){
   if(!missing(path.file))
     paths = scan(path.file, what = "character", sep = "\t")
   samps = list.files(paths, full.names = TRUE)
-  cat("We have",length(samps), "samples in this project\n", paste(basename(samps), collapse = "\n"))
+  cat("We have",length(samps), "samples in this project\n", 
+      paste(basename(samps), collapse = "\n"))
+  
   if(transfer){
     cat("Transferring...\n")
-    dir.create(file.path(out_dir, project.id, "orig.fqs"), recursive = TRUE, showWarnings = FALSE)
-    cmds = sprintf("rsync -a %s %s/%s/orig.fqs/", samps, out_dir, project.id)
+    dir.create(file.path(out_dir, project.id, "orig.fqs"), 
+               recursive = TRUE, showWarnings = FALSE)
+    cmds = sprintf("rsync -a %s %s/%s/orig.fqs/", 
+                   samps, out_dir, project.id)
+    
     tmp <- sapply(cmds, system)
     cat("All done\n")
   }
+  
 }
 
 

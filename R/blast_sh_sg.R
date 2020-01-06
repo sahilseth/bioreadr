@@ -8,7 +8,7 @@
 # get position
 #grep("[a-z]", strsplit(s, "")[[1]])
 
-run_blast_fasta_pam <- function(fa, blast_db, cores = 20, out_prefix){
+run_blast_fasta_pam <- function(fa, blast_db, cores = 20, outprefix){
   
   message("> checking blast db")
   bl <- blast(db = blast_db)
@@ -51,7 +51,7 @@ run_blast_fasta_pam <- function(fa, blast_db, cores = 20, out_prefix){
   df_blast = mutate(df_blast, strand = ifelse(s.start < s.end, "+", "-"))
   
   message("> writing output ..")
-  write_sheet(df_blast, paste0(out_prefix, ".tsv"))
+  write_sheet(df_blast, paste0(outprefix, ".tsv"))
   
   df_blast
 }
@@ -66,11 +66,11 @@ run_blast_fasta_pam <- function(fa, blast_db, cores = 20, out_prefix){
 #'
 #' @param mp mapping file with columns: antisense_seq sense_seq
 #' @param blast_db blast_db
-#' @param out_prefix out_prefix 
+#' @param outprefix outprefix 
 #' @param do_revcomp do_revcomp
 run_blast_map_seq <- function(mp, 
                               blast_db = "/rsrch2/iacs/iacs_dep/sseth/ref/human/annotations/gencode/v19/gencode.v19.pc_transcripts.fa", 
-                              out_prefix, 
+                              outprefix, 
                               do_revcomp = TRUE){
   
   message("> checking blast db")
@@ -101,9 +101,9 @@ run_blast_map_seq <- function(mp,
   df_blast = mutate(df_blast, strand = ifelse(s.start < s.end, "+", "-"))
   
   message("> writing output ..")
-  write_sheet(df_blast, paste0(out_prefix, ".tsv"))
+  write_sheet(df_blast, paste0(outprefix, ".tsv"))
   
-  out_prefix
+  outprefix
 }
 
 
@@ -221,7 +221,7 @@ parse_gencode_fa_header <- function(df_fa,
 
 
 # message("> writing output ..")
-# write_sheet(df_blast, paste0(out_prefix, ".tsv"))
+# write_sheet(df_blast, paste0(outprefix, ".tsv"))
 # 
 # # will save all results
 # tmp = mclapply(seq_along(seqs), function(i){
@@ -229,7 +229,7 @@ parse_gencode_fa_header <- function(df_fa,
 #   #print(seqs[i]);print(class(seqs[i]))
 #   
 #   message("_", appendLF = FALSE)
-#   write_sheet(cl, sprintf("%s_%s.tsv", out_prefix, i))
+#   write_sheet(cl, sprintf("%s_%s.tsv", outprefix, i))
 # 
 # }, mc.cores = cores)
 # 

@@ -542,7 +542,7 @@ maf2vcf <- function(maf_fl,
                     
 ){
   #"module load ensembl_vep_"
-  cmd_maf2vcf = glue("{maf2vcf_pl} --input-maf maf_fl --output-dir vcfs --per-tn-vcfs --ref-fasta {ref_fa}")
+  cmd_maf2vcf = glue("{maf2vcf_pl} --input-maf maf_fl --output-dir vcfs --per-tn-vcfs --ref_fasta {ref_fa}")
   
 }
 

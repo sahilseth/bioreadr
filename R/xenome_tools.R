@@ -19,7 +19,7 @@ if(FALSE){
     odir = file.path(runpath, "xenome")
     files = list.files(file.path(runpath, "bams"), pattern = "recalibed.bam$", full.names = TRUE)
     bams = sapply(patterns, grep, files, value = TRUE)
-    require(SaturnV)
+    # require(SaturnV)
     ##source("~/iacsSVN/RPacks/SaturnV/R/xenome_tools.R")
     ##debug(runXenome)
     require(tools)

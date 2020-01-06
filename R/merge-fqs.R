@@ -8,8 +8,9 @@ merge_fqs <- function (x, ...) {
 # https://www.biostars.org/p/81924/
 # cat file1.gz file2.gz file3.gz > allfiles.gz
 # The resulting hash/message digests should be identical.
-# My experience is that the zcat method is around 40x slower, but the cat method's resulting file is a few percent bigger depending on your the gzip parameters used in the methods.  
-  
+# My experience is that the zcat method is around 40x slower, 
+# but the cat method's resulting file is a few percent bigger depending on your the gzip parameters used in the methods.
+
 merge_fqs.character <- function(x, samplename, outfile){
   
   cmd = sprintf("cat %s > %s", 

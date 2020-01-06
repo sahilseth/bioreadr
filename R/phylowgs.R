@@ -39,7 +39,7 @@ mutectann2maf <- function(){
 #                                    ref_fasta = opts_flow$get("ref_fasta")
 #                                    ){
 #   # we would like this to create a file compatible with 
-#   # maf2vcf.pl --input-maf maf.tsv --output-dir vcfs --per-tn-vcfs --ref-fasta ~/ref/human/vep/homo_sapiens/95_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz
+#   # maf2vcf.pl --input-maf maf.tsv --output-dir vcfs --per-tn-vcfs --ref_fasta ~/ref/human/vep/homo_sapiens/95_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz
 #   mutect_ann = "ssm/185_145_T0-D___185_145_GB-D_mutect.annotated.tsv"
 #   mutect_maf = "ssm/185_145_T0-D___185_145_GB-D_mutect.annotated.maf"
 #   mutect_vcf = "ssm/185_145_T0-D___185_145_GB-D_mutect.annotated.vcf"
@@ -57,7 +57,7 @@ mutectann2maf <- function(){
 #   
 #   # convert to VCF
 #   maf2vcf_exe = "/rsrch3/home/iacs/sseth/.conda/envs/pcgr_py36/bin/maf2vcf.pl"
-#   cmd_maf2vcf = glue("{maf2vcf_exe} --input-maf {mutect_maf} --output-dir ssm --per-tn-vcfs --ref-fasta {ref_fasta}")
+#   cmd_maf2vcf = glue("{maf2vcf_exe} --input-maf {mutect_maf} --output-dir ssm --per-tn-vcfs --ref_fasta {ref_fasta}")
 #   run_cmd(cmd_maf2vcf, target = mutect_vcf, cmdname = "maf2vcf")
 #   
 #   # conv pindel2maf
@@ -73,7 +73,7 @@ mutectann2maf <- function(){
 #                           func = "exonicfunc.knowngene", 
 #                           aa_change = "aaannotation")
 #   write_tsv(maf, pindel_maf)
-#   cmd_maf2vcf = glue("{maf2vcf_exe} --input-maf {pindel_maf} --output-dir ssm --per-tn-vcfs --ref-fasta {ref_fasta}")
+#   cmd_maf2vcf = glue("{maf2vcf_exe} --input-maf {pindel_maf} --output-dir ssm --per-tn-vcfs --ref_fasta {ref_fasta}")
 #   run_cmd(cmd_maf2vcf, target = pindel_vcf, cmdname = "maf2vcf")
 #   
 # }
@@ -121,7 +121,7 @@ merge_all_calls_mutect_pindel <- function(trk,
   
   # convert to VCF
   maf2vcf_exe = "/rsrch3/home/iacs/sseth/.conda/envs/pcgr_py36/bin/maf2vcf.pl"
-  cmd_maf2vcf = glue("{maf2vcf_exe} --input-maf {combined_maf} --output-dir ssm --per-tn-vcfs --ref-fasta {ref_fasta}")
+  cmd_maf2vcf = glue("{maf2vcf_exe} --input-maf {combined_maf} --output-dir ssm --per-tn-vcfs --ref_fasta {ref_fasta}")
   cmd_maf2vcf;
   run_cmd(cmd_maf2vcf, target = combined_vcf, cmdname = "maf2vcf")
 

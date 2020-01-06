@@ -328,7 +328,7 @@ if(FALSE){
 pyclone_flo <- function(pyclone_input, 
                         pyclone_exe = "module load conda_/2.7;source activate pyclone;PyClone",
                         samplename,
-                        out_prefix){
+                        outprefix){
   
   # this can be done, for pyclone_exe
   #cmd0 = "module load pyclone"

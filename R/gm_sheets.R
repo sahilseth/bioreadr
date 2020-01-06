@@ -5,6 +5,7 @@
 # x = "IPCT-FC217-MOON0051-Cap1678-6-ID48_180910-STJ00106-0553-AHWNGNBBXX-4-TCGGCA"
 gm_split_propel_single_fls <- function(x){
   
+  p_load(glue)
   x = x %>% as.character() %>% basename()
   
   # there should be NO other sample_types
@@ -28,9 +29,61 @@ gm_split_propel_single_fls <- function(x){
   df = mutate(df, oprefix = glue("{proj_samp}_{runid}-{lane}-{index}"))
   
   df
+}
+
+gm_split_cgl_fqs <- function(x){
+  
+  x = x %>% as.character() %>% basename()
+  
+  # there should be NO other sample_types
+  # x = "IPCT-S4009-MOON0051-Cap2373-5-NT96_191001-A00422-0109-AHMCFWDSXX-3-GCCAAGAC.R2.fastq.gz"
+  # gsub("(.?)_(.*)-([0-9]*)-([ATGC]*|NoIndex)(.?)", "\\1,\\2,\\3,\\4", x)
+  if(grepl("\\.", x[1]))
+    fmt = "{{proj_samp}}_{{runid}}-{{lane}}-{{index}}\\.{{read}}\\.{{ext}}"
+  else
+    fmt = "{{proj_samp}}_{{runid}}-{{lane}}-{{index}}"      
+  
+  df = ultraseq:::split_names_fastq2(x, 
+                                     format = fmt, 
+                                     # regex pattern for each piece
+                                     lst_patterns = list(
+                                       proj_samp = "(.?)",
+                                       runid = "(.*)",
+                                       lane = "([0-9]*)",
+                                       index = "([ATGC]*|NoIndex)",
+                                       read = "R([1-2]{1})",
+                                       ext = "(.?)"),
+                                     strict_format_checking = FALSE) %>% tbl_df()
+  df = mutate(df, oprefix = glue("{proj_samp}_{runid}-{lane}-{index}"))
+  
+  df
+}
+
+# IPCT-FC213-MOON0051-Cap1646-6-ID42
+gm_split_ipct_name <- function(x){
+  
+  x = x %>% as.character() %>% basename()
+  
+  fmt = "{{center}}-{{batch}}-{{project}}-{{samplename}}"
+  
+  df = ultraseq:::split_names_fastq2(x, 
+                                     format = fmt, 
+                                     # regex pattern for each piece
+                                     lst_patterns = list(
+                                       center = "(.?)",
+                                       batch = "(.?)",
+                                       project = "(.?)",
+                                       samplename = "(.*)"),
+                                     strict_format_checking = FALSE) %>% tbl_df()
+
+  df
   
   
 }
+
+
+
+
 
 
 if(FALSE){
@@ -175,6 +228,7 @@ gm_read_tnbc_samplesheet <- function(fl = "~/projects/samplesheets/tnbc/seq_trac
   df_trk_ann = left_join(df_trk, df_sample_type, by = c("art_path_id" = "art_path_id"))
   df_trk_ann
 }
+
 
 
 

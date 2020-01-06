@@ -181,6 +181,94 @@ to_vcf.mutect_call_stats <- function(x, outfile){
 }
 
 
+#' to_vcf.mutect_call_stats
+#'
+#' Assumes fixed coloumns of VCF
+#' 
+#' @param x 
+#' @param outfile ouput VCF file
+#' 
+#' @import pacman
+#' 
+#' @export
+to_vcf.mutect1.7_extended_tsv <- function(x, outfile){
+  
+  ext = tools::file_ext(outfile)
+  if(ext == "gz")
+    stop("writing compressed files is not supported")
+  
+  # x = "/rsrch3/home/iacs/sseth/flows/SS/sarco/jco/wex/mutect1/WEX-sarco10-T___matched_mutect.merged.tsv.gz"
+  pacman::p_load(rlogging)
+  rlogging::message("loading file")
+  if(is.data.frame(x))
+    df = as.data.frame(x, stringsAsFactors = FALSE)
+  else
+    df = read_tsv(x, col_types = cols(.default = col_character()))
+  
+  # MAIN VCF cols:
+  # "\#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT";
+  
+  # need to encode NA, as .
+  rlogging::message("parsing info/format fields")
+  # table(df$failure_reasons, df$judgement, useNA = "always")
+  # NA: PASS, otherwise we have a reason
+  tmp = df$failure_reasons %>% strsplit(split = ",") %>% unlist()
+  table(tmp) %>% names()
+  df_vcf = df %>% 
+    dplyr::select(CHROM = contig, 
+           POS = position,
+           REF = ref_allele, 
+           ALT = alt_allele, 
+           FILTER = failure_reasons, 
+           everything()) %>% 
+    dplyr::mutate(ID = ".", 
+           QUAL = ".",
+           FILTER = ifelse(is.na(FILTER), "PASS", FILTER))
+  # df_vcf
+  # FORMAT
+  # INFO
+  df_vcf %<>% mutate(
+    t_alt_max_mapq,
+    t_ref_count = as.integer(t_ref_count),
+    t_alt_count = as.integer(t_alt_count),
+    n_ref_count = as.integer(n_ref_count),
+    n_alt_count = as.integer(n_alt_count),
+    
+    t_dp = t_ref_count + t_alt_count,
+    n_dp = n_ref_count + n_alt_count,
+    t_lod_fstar = round(as.integer(t_lod_fstar), 2),
+    init_n_lod = round(as.integer(init_n_lod), 2),
+    normal_f = n_alt_count/n_dp,
+    sb = gsub("\\(", "", strand_bias_counts),
+    sb = gsub("\\)", "", sb),
+    
+    INFO = glue("TLOD={t_lod_fstar}:NLOD={init_n_lod}:TAF={tumor_f}:TDP={t_dp}:NAF={normal_f};NDP={n_dp}"), 
+    FORMAT = "GT:GQ:AD:AF:DP:SB",
+    tumor = glue("0/1:.:{t_ref_count},{t_alt_count}:{tumor_f}:{t_dp}:{sb}"),
+    # should not matter as SB from normal is NEVER used....
+    # it seems combine variants from GATK is skipping this value if its missing!
+    normal = glue("0/0:.:{n_ref_count},{n_alt_count}:{normal_f}:{n_dp}:-99,-99,-99,-99"))
+  
+  # extract tumor normal name
+  tumor_name = df_vcf$tumor_name[1]
+  normal_name = df_vcf$normal_name[1] 
+  df_vcf_final = dplyr::select(df_vcf, 
+                               CHROM, POS, ID, REF, ALT, QUAL, 
+                               FILTER, INFO, FORMAT, 
+                               tumor, normal)
+  colnames(df_vcf_final) = c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL",
+                             "FILTER", "INFO", "FORMAT", 
+                             tumor_name, normal_name)
+  
+  rlogging::message("writing out a gz file: ", outfile)
+  # write header
+  header = .mutect1_header()
+  # gz1 <- gzfile(outfile, "w")
+  cat(header, file = outfile, sep = "\n")
+  write_tsv(df_vcf_final, outfile, append = T, col_names = T)
+  # close(gz1)
+}
+
 .mutect1_header <- function(){
   c(
     '##fileformat=VCFv4.2',
@@ -191,15 +279,28 @@ to_vcf.mutect_call_stats <- function(x, outfile){
     #'##phasing=partial',
     '##FILTER=<ID=PASS,Description="Accept as a confident somatic mutation">',
     '##FILTER=<ID=REJECT,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=alt_allele_in_normal,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=clustered_read_position,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=fstar_tumor_lod,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=germline_risk,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=nearby_gap_events,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=normal_lod,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=poor_mapping_region_alternate_allele_mapq,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=poor_mapping_region_mapq0,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=possible_contamination,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=strand_artifact,Description="Rejected as a confident somatic mutation">',
+    '##FILTER=<ID=triallelic_site,Description="Rejected as a confident somatic mutation">',
     
     #'##INFO=<ID=DB,Number=0,Type=Flag,Description="dbSNP Membership">',
     # '##INFO=<ID=MQ0,Number=1,Type=Integer,Description="Total Mapping Quality Zero Reads">',
     # '##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description="Somatic event">',
     # '##INFO=<ID=VT,Number=1,Type=String,Description="Variant type, can be SNP, INS or DEL">',
-    '##INFO=<ID=TLOD,Number=1,Type=String,Description="CORE STATISTIC: Log of (likelihood tumor event is real / likelihood event is sequencing error )">',
-    '##INFO=<ID=NLOD,Number=1,Type=String,Description="log likelihood of ( normal being reference / normal being altered )">',
-    '##INFO=<ID=TAF,Number=1,Type=Float,Description="allelic fraction of this candidated based on read counts">',
-    '##INFO=<ID=NAF,Number=1,Type=Float,Description="allelic fraction of this candidated based on read counts (in normal)">',
+    #'##INFO=<ID=TLOD,Number=1,Type=String,Description="CORE STATISTIC: Log of (likelihood tumor event is real / likelihood event is sequencing error )">',
+    # copy over values from mutect2 (gatk)
+    '##INFO=<ID=TLOD,Number=A,Type=Float,Description="Log odds ratio score for variant">',
+    '##INFO=<ID=NLOD,Number=A,Type=Float,Description="Normal LOD score">',
+    '##INFO=<ID=TAF,Number=1,Type=Float,Description="VAF in tumor">',
+    '##INFO=<ID=NAF,Number=1,Type=Float,Description="VAF in normal">',
     '##INFO=<ID=TDP,Number=1,Type=Integer,Description="Depth in tumor">',
     '##INFO=<ID=NDP,Number=1,Type=Integer,Description="Depth in normal">',
     
@@ -208,7 +309,9 @@ to_vcf.mutect_call_stats <- function(x, outfile){
     '##FORMAT=<ID=AF,Number=A,Type=Float,Description="Allele fractions of alternate alleles in the tumor">',
     '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">',
     '##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">',
-    '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
+    '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">',
+    '##FORMAT=<ID=SB,Number=4,Type=Integer,Description="Per-sample component statistics which comprise the Fishers Exact Test to detect strand bias.">'
+      
     
     # '##FORMAT=<ID=BQ,Number=A,Type=Float,Description="Average base quality for reads supporting alleles">',
     # '##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">',

@@ -89,7 +89,7 @@ create_tooling_paired_samplesheet <- function(x, outfile, tumor.only=FALSE, norm
 #' @param outfile outfile
 #' @param db_sampleid db_sampleid
 #' @param db_refid db_refid
-#' @param out_prefix out_prefix
+#' @param outprefix outprefix
 #' @param bampath bampath
 #' @param project project
 #' @param normal_bam_01 normal_bam_01
@@ -100,7 +100,7 @@ create_tooling_paired_samplesheet <- function(x, outfile, tumor.only=FALSE, norm
 #' 
 create_paired_samplesheet <- function(x, fqmat, 
                                       sampbam, refbam, ## full paths to bam files
-                                      outfile, db_sampleid = 0, db_refid = 0, out_prefix, 
+                                      outfile, db_sampleid = 0, db_refid = 0, outprefix, 
                                       bampath, ## to be supplied if fastq sheet is supplied
                                       project = 'project',  subproject = 'subproject',
                                       normal_bam_01){
@@ -119,10 +119,10 @@ create_paired_samplesheet <- function(x, fqmat,
     refbam <- ifelse(x[,2] == "common_normal_01", normal_bam_01, refbam)
   }
   if(missing(sampbam)) sampbam <- tmp_sampbam ## if missing them replace from fqmat
-  if(missing(out_prefix))
-    out_prefix = sprintf("%s___%s", basename(file_path_sans_ext(sampbam)), basename(file_path_sans_ext(refbam)))
+  if(missing(outprefix))
+    outprefix = sprintf("%s___%s", basename(file_path_sans_ext(sampbam)), basename(file_path_sans_ext(refbam)))
   out_mat = cbind(project = project, samplename = x[,1], refname = x[,2], sampbam = sampbam, refbam = refbam, 
-                  db_sampleid = db_sampleid, db_refid = db_refid, out_prefix = out_prefix)
+                  db_sampleid = db_sampleid, db_refid = db_refid, outprefix = outprefix)
   write.table(out_mat, file=outfile, sep="\t", quote=FALSE, row.names=FALSE)
   return(out_mat)
 }

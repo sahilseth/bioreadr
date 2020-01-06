@@ -59,7 +59,7 @@ picard_rg <- function(x,
 #' @param outfile name of the merged bam file
 #' @param samplename 
 #' @param java_exe path to java
-#' @param java_mem java memory
+#' @param java_mem java_memory
 #' @param java_tmp something
 #' @param picard_jar something
 #' @param mergesam_opts something

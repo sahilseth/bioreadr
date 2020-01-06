@@ -36,8 +36,7 @@ kallisto_pe.fqsheet <- function(fqsheet,
   
   samples = unique(fqsheet$samplename)
   
-  #s = "AV-Heterogeneity-RNA205-PATC53P178"
-  
+  # s = "AV-Heterogeneity-RNA205-PATC53P178"
   lst = lapply(samples, function(s){
     fqsheet.s = filter(fqsheet, samplename == s)
     
@@ -67,7 +66,7 @@ kallisto_pe.fqsheet <- function(fqsheet,
 #' @param fq1 something
 #' @param fq2 something 
 #' @param samplename something 
-#' @param out_prefix something 
+#' @param outprefix something 
 #' @param kallisto_exe something 
 #' @param kallisto_index_path something 
 #' @param kallisto_opts something 
@@ -76,7 +75,7 @@ kallisto_pe.fqsheet <- function(fqsheet,
 kallisto_pe <- function(fq1, fq2, 
                         samplename,
                         
-                        out_prefix,
+                        outprefix,
                         
                         kallisto_exe = opts_flow$get("kallisto_exe"),
                         kallisto_index_path = opts_flow$get("kallisto_index_path"),
@@ -86,18 +85,18 @@ kallisto_pe <- function(fq1, fq2,
                         
 ){
   
-  if(missing(out_prefix))
-    out_prefix = paste0(samplename, "_kallisto")
+  if(missing(outprefix))
+    outprefix = paste0(samplename, "_kallisto")
   
   check_args()
   
   # create kallisto cmd
   cmd_kal = sprintf("%s quant -i %s %s -o %s %s %s", 
-                    kallisto_exe, kallisto_index_path, kallisto_opts, out_prefix, fq1, fq2)
+                    kallisto_exe, kallisto_index_path, kallisto_opts, outprefix, fq1, fq2)
   
   flowmat = to_flowmat(list(kallisto = cmd_kal), samplename)
   
-  return(list(flowmat = flowmat, outfiles = out_prefix))
+  return(list(flowmat = flowmat, outfiles = outprefix))
   
 }
 
@@ -106,7 +105,7 @@ kallisto_pe <- function(fq1, fq2,
 #' @param fq1 something
 #' @param fq2 something 
 #' @param samplename something 
-#' @param out_prefix something 
+#' @param outprefix something 
 #' @param kallisto_exe something 
 #' @param kallisto_index_path something 
 #' @param kallisto_opts something 
@@ -115,7 +114,7 @@ kallisto_pe <- function(fq1, fq2,
 kallisto_se <- function(fq1,
                         samplename,
                         
-                        out_prefix,
+                        outprefix,
                         
                         kallisto_exe = opts_flow$get("kallisto_exe"),
                         kallisto_index_path = opts_flow$get("kallisto_index_path"),
@@ -125,18 +124,18 @@ kallisto_se <- function(fq1,
                         
 ){
   
-  if(missing(out_prefix))
-    out_prefix = paste0(samplename, "_kallisto")
+  if(missing(outprefix))
+    outprefix = paste0(samplename, "_kallisto")
   
   check_args()
   
   # create kallisto cmd
   cmd_kal = sprintf("%s quant -i %s %s -o %s %s", 
-                    kallisto_exe, kallisto_index_path, kallisto_opts, out_prefix, fq1)
+                    kallisto_exe, kallisto_index_path, kallisto_opts, outprefix, fq1)
   
   flowmat = to_flowmat(list(kallisto = cmd_kal), samplename)
   
-  return(list(flowmat = flowmat, outfiles = out_prefix))
+  return(list(flowmat = flowmat, outfiles = outprefix))
   
 }
 

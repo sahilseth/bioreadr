@@ -20,22 +20,22 @@ opts_flow$set(
 #'
 #' @param x a bam file
 #' @param samplename samplename
-#' @param out_prefix output prefix to be used
+#' @param outprefix output prefix to be used
 #' @param htseq_opts options to be supplied to htseq, default retrieved using opts_flow$get("htseq_opts").
 #' @param gtf a GTF file used
 #'
 #' @export
 #'
 htseq <- function(bam, samplename,
-                  out_prefix,
+                  outprefix,
                   htseq_exe = opts_flow$get("htseq_exe"),
                   htseq_opts = opts_flow$get("htseq_opts"),
                   gtf = opts_flow$get("gtf")){
 
   check_args()
 
-  prefix_gene = paste(out_prefix, "htseqcount.gene.txt", sep=".")
-  prefix_exon = paste(out_prefix, "htseqcount.exon.txt", sep=".")
+  prefix_gene = paste(outprefix, "htseqcount.gene.txt", sep=".")
+  prefix_exon = paste(outprefix, "htseqcount.exon.txt", sep=".")
   
   cmd_gene <- sprintf("%s %s %s %s > %s",
                   htseq_exe, htseq_opts, bam, gtf, prefix_gene)

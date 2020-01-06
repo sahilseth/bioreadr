@@ -50,11 +50,11 @@ extract_geno <- function(vcf, tumor_name, normal_name, debug = T){
     
     df_var = geno(vcf)[[var]] %>% data.frame(check.names = F)
     # LOOP for every sample:
-    lapply(1:num_samples){
-      
-      
-    }
-    
+    # lapply(1:num_samples){
+    #   
+    #   
+    # }
+    # 
     
     # head(df_var)
     # sapply(df_var, class)

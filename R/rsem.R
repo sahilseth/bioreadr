@@ -26,7 +26,7 @@
 
 rsem_star_pe <- function(fq1, fq2, samplename,
                     
-                    out_prefix,
+                    outprefix,
                     #rsem_exp_exe = "/scratch/rists/hpcapps/x86_64/rsem/1.2.12/rsem-calculate-expression", 
                     rsem_exp_exe =  "/rsrch2/iacs/apps/conda/3.18.9/bin/rsem-calculate-expression",
                     rsem_opts = "-p 8", 
@@ -38,21 +38,21 @@ rsem_star_pe <- function(fq1, fq2, samplename,
                     ){
   
   
-  if(missing(out_prefix))
-    out_prefix = paste0(samplename, "_rsem")
+  if(missing(outprefix))
+    outprefix = paste0(samplename, "_rsem")
   
   check_args()
   
   # paired end:
   # cmd_rsem <- sprintf("%s %s --bowtie2 --bowtie2-path %s --paired-end %s %s %s %s", 
   #                     rsem_exp_exe, rsem_opts, bowtie_exe, 
-  #                     fq1, fq2, rsem_ref, out_prefix)
+  #                     fq1, fq2, rsem_ref, outprefix)
   cmd_rsem <- sprintf("%s %s --star --star-path %s --paired-end %s %s %s %s", 
                       rsem_exp_exe, rsem_opts, star_path, 
-                      fq1, fq2, rsem_ref, out_prefix)
+                      fq1, fq2, rsem_ref, outprefix)
   
-  out_isoforms <- paste(out_prefix, '.isoforms.results',sep='')
-  out_genes <- paste(out_prefix, '.genes.results',sep='')
+  out_isoforms <- paste(outprefix, '.isoforms.results',sep='')
+  out_genes <- paste(outprefix, '.genes.results',sep='')
   
   flowmat = list(rsem = cmd_rsem) %>% to_flowmat(samplename)
   
