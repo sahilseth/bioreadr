@@ -4,8 +4,14 @@
 \alias{paired_bam_set}
 \title{Create a single object, to be used by multiple modules}
 \usage{
-paired_bam_set(tumor_bam, normal_bam, outprefix, is_merged, split_by_chr,
-  ref_fasta_path = opts_flow$get("ref_fasta_path"))
+paired_bam_set(
+  tumor_bam,
+  normal_bam,
+  outprefix,
+  is_merged,
+  split_by_chr,
+  ref_fasta_path = opts_flow$get("ref_fasta_path")
+)
 }
 \arguments{
 \item{tumor_bam}{tumor bam file}

@@ -4,14 +4,17 @@
 \alias{picard_rg}
 \title{picard_rg}
 \usage{
-picard_rg(x, samplename = opts_flow$get("samplename"),
+picard_rg(
+  x,
+  samplename = opts_flow$get("samplename"),
   rg_lane = opts_flow$get("rg_lane"),
   rg_platform = opts_flow$get("rg_platform"),
   rg_center = opts_flow$get("rg_center"),
   java_exe = opts_flow$get("java_exe"),
   java_mem = opts_flow$get("java_mem"),
   java_tmp = opts_flow$get("java_tmp"),
-  picard_jar = opts_flow$get("picard_jar"))
+  picard_jar = opts_flow$get("picard_jar")
+)
 }
 \arguments{
 \item{x}{something}

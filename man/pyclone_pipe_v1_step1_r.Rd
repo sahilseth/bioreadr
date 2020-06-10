@@ -4,13 +4,16 @@
 \alias{pyclone_pipe_v1_step1_r}
 \title{this function actually runs the pipeline}
 \usage{
-pyclone_pipe_v1_step1_r(trk,
+pyclone_pipe_v1_step1_r(
+  trk,
   bamreadcount_exe = opts_flow$get("bamreadcount_exe"),
   fa_fl = opts_flow$get("ref_fasta"),
   pyclone_params = opts_flow$get("pyclone_params"),
   segfl_type = opts_flow$get("segfl_type"),
   mutfl_type = opts_flow$get("mutfl_type"),
-  conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf")
+ 
+    conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf"
+)
 }
 \arguments{
 \item{trk}{trk fl}

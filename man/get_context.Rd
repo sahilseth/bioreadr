@@ -4,9 +4,13 @@
 \alias{get_context}
 \title{Title}
 \usage{
-get_context(x, bedtools_exe = "bedtools", tmpfile1 = tempfile(fileext =
-  ".bed"), tmpfile2 = tempfile(fileext = ".bed"),
-  reflib = "~/ref/human/fastas/Homo_sapiens_assembly19.fasta")
+get_context(
+  x,
+  bedtools_exe = "bedtools",
+  tmpfile1 = tempfile(fileext = ".bed"),
+  tmpfile2 = tempfile(fileext = ".bed"),
+  reflib = "~/ref/human/fastas/Homo_sapiens_assembly19.fasta"
+)
 }
 \arguments{
 \item{x}{data.frame with chr start end}

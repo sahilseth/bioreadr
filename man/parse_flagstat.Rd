@@ -4,9 +4,12 @@
 \alias{parse_flagstat}
 \title{flagstat}
 \usage{
-parse_flagstat(x, genome_length = opts_flow$get("genome_length"),
+parse_flagstat(
+  x,
+  genome_length = opts_flow$get("genome_length"),
   read_length = opts_flow$get("read_length"),
-  verbose = opts_flow$get("verbose"))
+  verbose = opts_flow$get("verbose")
+)
 }
 \arguments{
 \item{x}{something}

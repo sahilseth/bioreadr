@@ -4,12 +4,15 @@
 \alias{picard_mergesamfiles.gatk4}
 \title{Use picard's MergeSamFiles tool to merge bam/sam files}
 \usage{
-picard_mergesamfiles.gatk4(bams, outfile,
+picard_mergesamfiles.gatk4(
+  bams,
+  outfile,
   samplename = opts_flow$get("samplename"),
   java_exe = opts_flow$get("java_exe"),
   java_mem = opts_flow$get("java_mem_str"),
   gatk4_exe = opts_flow$get("gatk4_exe"),
-  mergesam_opts = "--ASSUME_SORTED --USE_THREADING --CREATE_INDEX")
+  mergesam_opts = "--ASSUME_SORTED --USE_THREADING --CREATE_INDEX"
+)
 }
 \arguments{
 \item{bams}{a vectors of files to merge}

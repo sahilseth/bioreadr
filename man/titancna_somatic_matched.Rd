@@ -4,8 +4,7 @@
 \alias{titancna_somatic_matched}
 \title{Title}
 \usage{
-titancna_somatic_matched(trk, samplename, num_cores = nrow(df_trk),
-  test = T)
+titancna_somatic_matched(trk, samplename, num_cores = nrow(df_trk), test = T)
 }
 \arguments{
 \item{trk}{}

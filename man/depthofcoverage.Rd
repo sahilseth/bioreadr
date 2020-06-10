@@ -4,14 +4,19 @@
 \alias{depthofcoverage}
 \title{a wrapper around gatk haplotyper}
 \usage{
-depthofcoverage(x, samplename = opts_flow$get("samplename"), outfile,
-  split_by_chr = TRUE, ref_fasta = opts_flow$get("ref_fasta"),
+depthofcoverage(
+  x,
+  samplename = opts_flow$get("samplename"),
+  outfile,
+  split_by_chr = TRUE,
+  ref_fasta = opts_flow$get("ref_fasta"),
   java_exe = opts_flow$get("java_exe"),
   java_mem = opts_flow$get("java_mem"),
   java_tmp = opts_flow$get("java_tmp"),
   gatk_jar = opts_flow$get("gatk_jar"),
   haplotyper_opts = opts_flow$get("haplotyper_opts"),
-  cpu_haplotyper = opts_flow$get("cpu_haplotyper"))
+  cpu_haplotyper = opts_flow$get("cpu_haplotyper")
+)
 }
 \arguments{
 \item{x}{input bam}

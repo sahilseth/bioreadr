@@ -4,7 +4,10 @@
 \alias{mutect1.7}
 \title{A wrapper around somatic mutation caller MuTect}
 \usage{
-mutect1.7(trk, samplename, variant_calling_mode,
+mutect1.7(
+  trk,
+  samplename,
+  variant_calling_mode,
   java_exe = opts_flow$get("java17_exe"),
   java_tmp = opts_flow$get("java_tmp"),
   java_mem = opts_flow$get("java_mem_str"),
@@ -17,7 +20,8 @@ mutect1.7(trk, samplename, variant_calling_mode,
   germline_vcf = opts_flow$get("germline_variants_vcf"),
   cosmic_vcf = opts_flow$get("cosmic_variants_vcf"),
   mutect1_pon_vcf = opts_flow$get("mutect1_pon_vcf"),
-  interval_split = opts_flow$get("mutect1_intervals"))
+  interval_split = opts_flow$get("mutect1_intervals")
+)
 }
 \arguments{
 \item{samplename}{name of the sample, to be added to the flowmat}

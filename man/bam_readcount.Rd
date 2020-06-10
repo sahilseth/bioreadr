@@ -9,9 +9,14 @@ It does not invalidate your results and you can safely ignore this error,
 but you should not use the single ended mapping quality field of the output.
 Run BAM readcount}
 \usage{
-bam_readcount(bam, samplename, bed, outfile,
+bam_readcount(
+  bam,
+  samplename,
+  bed,
+  outfile,
   fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta",
-  bamreadcount_exe = "bam-readcount")
+  bamreadcount_exe = "bam-readcount"
+)
 }
 \arguments{
 \item{bam}{something}

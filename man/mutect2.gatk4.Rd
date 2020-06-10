@@ -9,17 +9,7 @@ MuTect2 and VarDict can stall on regions with extremely high coverage but that u
 https://gatkforums.broadinstitute.org/gatk/discussion/4133/when-should-i-use-l-to-pass-in-a-list-of-intervals
 Below is a step-by-step breakdown of the Best Practices workflow, with a detailed explanation of why -L should or shouldn’t be used with each tool.}
 \arguments{
-\item{tumor_bam}{path to a tumor bam file}
-
-\item{normal_bam}{path to a normal bam file}
-
-\item{samplename}{name of the sample, to be added to the flowmat}
-
 \item{is_merged}{specify if the input bam is already split by chromosomes (FALSE) or is a merged file with all chromosome (TRUE). [FALSE]}
-
-\item{split_by_chr}{fork running mutect by chromosome to make it faster [TRUE]. Turning is option OFF is not fully supported.}
-
-\item{java_exe}{path to java's executable [java]}
 
 \item{java_tmp}{path to a temp folder to be used by java}
 
@@ -28,48 +18,6 @@ Below is a step-by-step breakdown of the Best Practices workflow, with a detaile
 \item{cpu_mutect}{integer specifying number of thread to be used per mutect fork}
 
 \item{mem_mutect}{amount of memory to be used by mutect [-Xmx12g]}
-
-\item{ref_fasta}{path to the reference genome in fasta format}
-
-\item{mutect2_opts}{additional arguments passed onto mutect}
-
-\item{tumor_bam}{path to a tumor bam file}
-
-\item{normal_bam}{path to a normal bam file}
-
-\item{samplename}{name of the sample, to be added to the flowmat}
-
-\item{tumor_name}{}
-
-\item{normal_name}{}
-
-\item{outprefix}{}
-
-\item{ref_fasta}{}
-
-\item{java_exe}{}
-
-\item{java_mem}{}
-
-\item{gatk4_exe}{}
-
-\item{mutect2_cpu}{}
-
-\item{mutect2_mem}{}
-
-\item{mutect2_opts}{}
-
-\item{mutect2_create_bam_out}{}
-
-\item{pon_m2_vcf}{}
-
-\item{germline_vcf}{}
-
-\item{germline_biallelic_vcf}{}
-
-\item{interval_split}{}
-
-\item{split_by_chr}{fork running mutect by chromosome to make it faster [TRUE]. Turning is option OFF is not fully supported.}
 
 \item{tumor_bam}{path to a tumor bam file}
 

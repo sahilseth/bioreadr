@@ -4,8 +4,11 @@
 \alias{pyclone_pipe_v1_step3_r}
 \title{bam_readcount_pyclone_r_step3}
 \usage{
-pyclone_pipe_v1_step3_r(pyclone_path = ".",
-  conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf")
+pyclone_pipe_v1_step3_r(
+  pyclone_path = ".",
+ 
+    conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf"
+)
 }
 \arguments{
 \item{pyclone_path}{pyclone_path}

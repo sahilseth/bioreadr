@@ -4,8 +4,13 @@
 \alias{bam_set}
 \title{bam_set}
 \usage{
-bam_set(bam, outprefix, ref_fasta, interval_split, split_by = c("none",
-  "chr_len", "interval_split"))
+bam_set(
+  bam,
+  outprefix,
+  ref_fasta,
+  interval_split,
+  split_by = c("none", "chr_len", "interval_split")
+)
 }
 \arguments{
 \item{bam}{}
@@ -17,6 +22,9 @@ bam_set(bam, outprefix, ref_fasta, interval_split, split_by = c("none",
 \item{interval_split}{}
 
 \item{split_by}{}
+}
+\value{
+
 }
 \description{
 bam_set

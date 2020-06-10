@@ -7,11 +7,18 @@ Mandatory fields:
 Hugo_Symbol, Chromosome, Start_Position, End_Position, Reference_Allele, 
 Tumor_Seq_Allele2, Variant_Classification, Variant_Type and Tumor_Sample_Barcode.}
 \usage{
-oncotator(x, samplename, outfile, input_format = "maflite",
+oncotator(
+  x,
+  samplename,
+  outfile,
+  input_format = "maflite",
   output_format = "maflite",
   oncotator_exe = "~/apps/python/2.7/bin/oncotator",
-  db_dir = "~/rsrch2_home/ref/human/b37/annotations/oncotator/oncotator_v1_ds_April052016",
-  execute = F, oncotator_opts = "-c $tx")
+ 
+    db_dir = "~/rsrch2_home/ref/human/b37/annotations/oncotator/oncotator_v1_ds_April052016",
+  execute = F,
+  oncotator_opts = "-c $tx"
+)
 }
 \arguments{
 \item{x}{tsv file, Hugo_Symbol, Chromosome, Start_Position, End_Position,Reference_Allele, Tumor_Seq_Allele2, OR a VCF file}

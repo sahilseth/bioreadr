@@ -4,8 +4,12 @@
 \alias{create_trk.kallisto}
 \title{create a tracking sheet for kallisto}
 \usage{
-create_trk.kallisto(trk, col_sequencing_id = "sample_id",
-  kallisto_path = "~/.rsrch1/iacs/iacs_dep/sseth/data/runs/20180313_CT_RNA/kallisto/flowname-20180716-17-04-03-5WlTgRNo")
+create_trk.kallisto(
+  trk,
+  col_sequencing_id = "sample_id",
+ 
+    kallisto_path = "~/.rsrch1/iacs/iacs_dep/sseth/data/runs/20180313_CT_RNA/kallisto/flowname-20180716-17-04-03-5WlTgRNo"
+)
 }
 \arguments{
 \item{trk}{something}

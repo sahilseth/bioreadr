@@ -4,9 +4,13 @@
 \alias{split_fq}
 \title{split fastq into pre-determined number of splits}
 \usage{
-split_fq(x, samplename, jobname,
-  split_fq_exe = system.file("scripts/split_fq.sh", package =
-  "ultraseq"), chunks = 200)
+split_fq(
+  x,
+  samplename,
+  jobname,
+  split_fq_exe = system.file("scripts/split_fq.sh", package = "ultraseq"),
+  chunks = 200
+)
 }
 \arguments{
 \item{x}{file to split}

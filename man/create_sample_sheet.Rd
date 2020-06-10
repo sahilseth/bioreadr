@@ -4,10 +4,19 @@
 \alias{create_sample_sheet}
 \title{Creates a sample sheet file names in the provided folder}
 \usage{
-create_sample_sheet(path, project, subproject, runid, format,
-  fix.names = FALSE, fix.names.char = "-", out_sep = c("\\t", ","),
-  include.undetermined = FALSE, pattern = "fastq.gz|fq.gz|fastq|fq",
-  outfile)
+create_sample_sheet(
+  path,
+  project,
+  subproject,
+  runid,
+  format,
+  fix.names = FALSE,
+  fix.names.char = "-",
+  out_sep = c("\\t", ","),
+  include.undetermined = FALSE,
+  pattern = "fastq.gz|fq.gz|fastq|fq",
+  outfile
+)
 }
 \arguments{
 \item{path}{path to the fastq files}

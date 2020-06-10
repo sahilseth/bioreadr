@@ -4,8 +4,7 @@
 \alias{gm_pindel.read}
 \title{read pindel}
 \usage{
-gm_pindel.read(trk, col_fl = "pindel_fl", col_samp = "NAME",
-  cores = 1)
+gm_pindel.read(trk, col_fl = "pindel_fl", col_samp = "NAME", cores = 1)
 }
 \arguments{
 \item{trk}{something}

@@ -6,9 +6,12 @@
 kallisto=/rsrch2/iacs/iacs_dep/sseth/apps/kallisto/0.43.0/kallisto
 $kallisto index -i gencode.v19.pc_transcripts ../../../annotations/gencode/v19/gencode.v19.pc_transcripts.fa}
 \usage{
-kallisto_pe.fqsheet(fqsheet,
+kallisto_pe.fqsheet(
+  fqsheet,
   kallisto_exe = "/rsrch2/iacs/apps/conda/3.18.9/bin/kallisto",
-  kallisto_index_path = "/rsrch2/iacs/iacs_dep/sseth/ref/human/indexes/kallisto/0.42.4/gencode.v19.pc_transcripts")
+ 
+    kallisto_index_path = "/rsrch2/iacs/iacs_dep/sseth/ref/human/indexes/kallisto/0.42.4/gencode.v19.pc_transcripts"
+)
 }
 \arguments{
 \item{fqsheet}{needs columns: samplename, lane, num, read}

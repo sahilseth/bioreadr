@@ -4,14 +4,18 @@
 \alias{picard_reorder}
 \title{Use picard's reorder bam file}
 \usage{
-picard_reorder(x, outfile, samplename = opts_flow$get("samplename"),
+picard_reorder(
+  x,
+  outfile,
+  samplename = opts_flow$get("samplename"),
   java_exe = opts_flow$get("java_exe"),
   java_mem = opts_flow$get("java_mem"),
   java_tmp = opts_flow$get("java_tmp"),
   picard_dir = opts_flow$get("picard_dir"),
   picard_reorder_opts = opts_flow$get("picard_reorder_opts"),
   ref_fasta = opts_flow$get("ref_fasta"),
-  samtools_exe = opts_flow$get("samtools_exe"))
+  samtools_exe = opts_flow$get("samtools_exe")
+)
 }
 \arguments{
 \item{x}{a vectors of files to merge}

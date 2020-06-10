@@ -4,13 +4,23 @@
 \alias{annotate_variants}
 \title{annotate variants}
 \usage{
-annotate_variants(x, outfile, execute = TRUE,
+annotate_variants(
+  x,
+  outfile,
+  execute = TRUE,
   annovar_path = "/scratch/iacs/apps/annovar/latest",
   db_path = "/scratch/iacs/apps/annovar/humandb",
   annovar_opts = "-otherinfo -nastring . -remove -buildver",
-  build = "hg19", protocols_g, protocols_f, chr = "contig",
-  start = "position", end = "position", ref = "ref_allele",
-  alt = "alt_allele", use_uuid = TRUE)
+  build = "hg19",
+  protocols_g,
+  protocols_f,
+  chr = "contig",
+  start = "position",
+  end = "position",
+  ref = "ref_allele",
+  alt = "alt_allele",
+  use_uuid = TRUE
+)
 }
 \arguments{
 \item{x}{A data.frame or a file with an extension recognized by read_sheet}

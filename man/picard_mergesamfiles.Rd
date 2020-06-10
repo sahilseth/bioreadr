@@ -4,13 +4,17 @@
 \alias{picard_mergesamfiles}
 \title{Use picard's MergeSamFiles tool to merge bam/sam files}
 \usage{
-picard_mergesamfiles(bams, outfile,
+picard_mergesamfiles(
+  bams,
+  outfile,
   samplename = opts_flow$get("samplename"),
   java_exe = opts_flow$get("java_exe"),
   java_mem = opts_flow$get("java_mem"),
   java_tmp = opts_flow$get("java_tmp"),
   picard_jar = opts_flow$get("picard_jar"),
-  mergesam_opts = "ASSUME_SORTED=TRUE VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true USE_THREADING=true")
+ 
+    mergesam_opts = "ASSUME_SORTED=TRUE VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true USE_THREADING=true"
+)
 }
 \arguments{
 \item{bams}{a vectors of files to merge}

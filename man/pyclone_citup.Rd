@@ -4,9 +4,11 @@
 \alias{pyclone_citup}
 \title{pyclone_citup}
 \usage{
-pyclone_citup(pyclone_path,
+pyclone_citup(
+  pyclone_path,
   citup_exe = "module load conda_/2.7;source activate citup;run_citup_qip.py",
-  citup_params = "--submit local --loglevel DEBUG --maxjobs 8")
+  citup_params = "--submit local --loglevel DEBUG --maxjobs 8"
+)
 }
 \arguments{
 \item{pyclone_path}{}

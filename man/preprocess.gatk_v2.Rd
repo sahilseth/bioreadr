@@ -4,14 +4,17 @@
 \alias{preprocess.gatk_v2}
 \title{Pre-process bam files following Broad's best practices for variant calling, starting from aligned BAM file}
 \usage{
-preprocess.gatk_v2(bam, outfile,
+preprocess.gatk_v2(
+  bam,
+  outfile,
   samplename = opts_flow$get("samplename"),
   split_by_chr = opts_flow$get("split_by_chr"),
   java_exe = opts_flow$get("java_exe"),
   java_tmp = opts_flow$get("java_tmp"),
   gatk_jar_path = opts_flow$get("gatk_jar_path"),
   picard_jar_path = opts_flow$get("picard_jar_path"),
-  samtools_exe = opts_flow$get("samtools.exe"), cpu_markdup = 1,
+  samtools_exe = opts_flow$get("samtools.exe"),
+  cpu_markdup = 1,
   mem_markdup = opts_flow$get("mem_markdup"),
   cpu_target = opts_flow$get("cpu_target"),
   mem_target = opts_flow$get("mem_target"),
@@ -27,7 +30,8 @@ preprocess.gatk_v2(bam, outfile,
   gatk_realign_opts = opts_flow$get("gatk_realign_opts"),
   gatk_baserecalib_opts = opts_flow$get("gatk_baserecalib_opts"),
   gatk_printreads_opts = opts_flow$get("gatk_printreads_opts"),
-  execute_cmds = FALSE)
+  execute_cmds = FALSE
+)
 }
 \arguments{
 \item{bam}{bam file path}

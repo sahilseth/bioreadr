@@ -4,8 +4,15 @@
 \alias{avail_genomes}
 \title{Use Illumina's iGenomes and get a list of available genomes}
 \usage{
-avail_genomes(species, src, build, from = "igenomes", verbose = FALSE,
-  base_url = "ftp://igenome:G3nom3s4u@ussd-ftp.illumina.com", ...)
+avail_genomes(
+  species,
+  src,
+  build,
+  from = "igenomes",
+  verbose = FALSE,
+  base_url = "ftp://igenome:G3nom3s4u@ussd-ftp.illumina.com",
+  ...
+)
 }
 \arguments{
 \item{species}{species}

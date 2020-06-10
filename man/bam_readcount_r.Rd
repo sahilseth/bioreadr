@@ -4,11 +4,16 @@
 \alias{bam_readcount_r}
 \title{bam_readcount_r}
 \usage{
-bam_readcount_r(trk, col_fl = "MUT", col_bam = "BAM",
-  col_samp = "NAME", execute = F,
+bam_readcount_r(
+  trk,
+  col_fl = "MUT",
+  col_bam = "BAM",
+  col_samp = "NAME",
+  execute = F,
   bamreadcount_exe = "~/apps/conda/3.6/bin/bam-readcount",
   force_redo = F,
-  fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta")
+  fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta"
+)
 }
 \arguments{
 \item{trk}{can be a data.frame, or a tsv file with columns: sample1, mutect_fl, file1 (recalibed bam)}

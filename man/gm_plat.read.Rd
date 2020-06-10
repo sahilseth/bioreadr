@@ -4,8 +4,7 @@
 \alias{gm_plat.read}
 \title{read mutect}
 \usage{
-gm_plat.read(trk, col_fl = "mutect", col_samp = "samplelbl1",
-  cores = 1)
+gm_plat.read(trk, col_fl = "mutect", col_samp = "samplelbl1", cores = 1)
 }
 \arguments{
 \item{trk}{something}

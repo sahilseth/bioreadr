@@ -4,7 +4,9 @@
 \alias{preprocess.gatk_v4}
 \title{Pre-process bam files following Broad's best practices for variant calling, starting from aligned BAM file}
 \usage{
-preprocess.gatk_v4(bam, outfile,
+preprocess.gatk_v4(
+  bam,
+  outfile,
   samplename = opts_flow$get("samplename"),
   split_by_chr = opts_flow$get("split_by_chr"),
   samtools_exe = opts_flow$get("samtools.exe"),
@@ -17,7 +19,8 @@ preprocess.gatk_v4(bam, outfile,
   markdup_opts = opts_flow$get("gatk4.markdup.opts"),
   baserecalib_mem = opts_flow$get("gatk4.baserecalib.mem"),
   baserecalib_opts = opts_flow$get("gatk4.baserecalib.opts"),
-  execute_cmds = FALSE)
+  execute_cmds = FALSE
+)
 }
 \arguments{
 \item{bam}{bam file path}

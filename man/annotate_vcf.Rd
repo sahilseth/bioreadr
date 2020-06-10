@@ -4,8 +4,17 @@
 \alias{annotate_vcf}
 \title{Not tested}
 \usage{
-annotate_vcf(x, oprefix, odir, build, use_uuid, annovar_path, protocols_f,
-  protocols_g, ...)
+annotate_vcf(
+  x,
+  oprefix,
+  odir,
+  build,
+  use_uuid,
+  annovar_path,
+  protocols_f,
+  protocols_g,
+  ...
+)
 }
 \description{
 Not tested

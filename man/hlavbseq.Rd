@@ -4,23 +4,32 @@
 \alias{hlavbseq}
 \title{runHLAVBSeq}
 \usage{
-hlavbseq(bam, samplename, region = "6:29690552-33111102",
-  paired_end = TRUE, bwa_exe = opts_flow$get("bwa_exe"),
-  hla_all_fa = opts_flow$get("hla_all_v2_fa"),
-  hla_allele_list = opts_flow$get("hla_allele_list"),
-  java_exe = opts_flow$get("java_exe"),
-  hlavbseq_jar = opts_flow$get("hlavbseq_jar"),
-  hlavbseq_call_hla_digits_py = opts_flow$get("hlavbseq_call_hla_digits_py"),
-  hla_call_digits_opts = opts_flow$get("hla_call_digits_opts"))
+hlavbseq(
+  bam,
+  samplename,
+  paired_end = TRUE,
+  odir = "hlavbseq",
+  fqs,
+  seq_sample_id,
+  bwa_exe = opts_flow$get("bwa.exe"),
+  hla_all_fa = opts_flow$get("hlavbseq.hla_v2_fa"),
+  hla_allele_list = opts_flow$get("hlavbseq.hla_allele_list"),
+  hla_allele_db = opts_flow$get("hlavbseq.allele_db"),
+  java_exe = opts_flow$get("java.exe"),
+  hlavbseq_jar = opts_flow$get("hlavbseq.jar"),
+  hlavbseq_call_digits_py = opts_flow$get("hlavbseq.call_digits_py"),
+  hla_call_digits_opts = opts_flow$get("hlavbseq.call_digits_opts"),
+  funr_exe = opts_flow$get("R.funr_exe")
+)
 }
 \arguments{
-\item{region}{}
+\item{odir}{}
 
 \item{bamName}{}
 
-\item{odir}{}
-
 \item{oprefix}{}
+
+\item{region}{}
 
 \item{paired}{}
 }

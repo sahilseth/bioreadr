@@ -11,7 +11,10 @@ http://bio-bwa.sourceforge.net/bwa.shtml
 \usage{
 bwa(method = c("backtrack", "mem", "aln_sam"), ...)
 
-bwa.backtrack(fqs1, fqs2, paired_end,
+bwa.backtrack(
+  fqs1,
+  fqs2,
+  paired_end,
   samplename = opts_flow$get("samplename"),
   bwa_exe = opts_flow$get("bwa_exe"),
   ref_bwa = opts_flow$get("ref_bwa"),
@@ -19,15 +22,21 @@ bwa.backtrack(fqs1, fqs2, paired_end,
   cpu_bwa_aln = opts_flow$get("cpu_bwa_aln"),
   bwa_sampe_opts = opts_flow$get("bwa_sampe_opts"),
   bwa_samse_opts = opts_flow$get("bwa_samse_opts"),
-  samtools_exe = opts_flow$get("samtools_exe"))
+  samtools_exe = opts_flow$get("samtools_exe")
+)
 
-bwa.mem(fqs1, fqs2, paired_end = opts_flow$get("paired_end"),
+bwa.mem(
+  fqs1,
+  fqs2,
+  paired_end = opts_flow$get("paired_end"),
   samplename = opts_flow$get("samplename"),
   bwa_mem.exe = opts_flow$get("bwa_mem.exe"),
   ref.bwa = opts_flow$get("ref.bwa"),
   bwa_mem.opts = opts_flow$get("bwa_mem.opts"),
   bwa_mem.cpu = opts_flow$get("bwa_mem.cpu"),
-  samtools.exe = opts_flow$get("samtools.exe"), execute = FALSE)
+  samtools.exe = opts_flow$get("samtools.exe"),
+  execute = FALSE
+)
 }
 \arguments{
 \item{bwa_mem.opts}{}

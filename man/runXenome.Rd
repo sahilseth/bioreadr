@@ -4,17 +4,25 @@
 \alias{runXenome}
 \title{runXenome}
 \usage{
-runXenome(bam, fq1, fq2, outbam, odir,
+runXenome(
+  bam,
+  fq1,
+  fq2,
+  outbam,
+  odir,
   picard_dir = "/scratch/rists/hpcapps/x86_64/picard/1.112",
   xenome_exe = "/scratch/rists/hpcapps/rhel6/xenome/1.0.1-r/xenome",
   xen_index = "/IACS1/NGS/hg19-mm9-xenome-index/hg19-mm9-xenome-index",
   java = "/scratch/rists/hpcapps/x86_64/jdk/jdk1.7.0/bin/java",
-  javaMem = "-Xmx8g", xen_cores = 24,
+  javaMem = "-Xmx8g",
+  xen_cores = 24,
   xenome_fastq_exe = "/scratch/iacs/bin/xenome/xen_to_fastq.sh",
   python_exe = "/scratch/rists/hpcapps/x86_64/Python/2.7.6-new/bin/python",
   filter_reads_exe = "/scratch/iacs/bin/xenome/filter_xeno_mmReads.py",
-  samtools_dir = "/risapps/rhel5/samtools/1.1/bin", execute = TRUE,
-  verbose = FALSE)
+  samtools_dir = "/risapps/rhel5/samtools/1.1/bin",
+  execute = TRUE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{bam}{bam}

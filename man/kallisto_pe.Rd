@@ -4,10 +4,15 @@
 \alias{kallisto_pe}
 \title{Run a paired end kallisto pipeline}
 \usage{
-kallisto_pe(fq1, fq2, samplename, outprefix,
+kallisto_pe(
+  fq1,
+  fq2,
+  samplename,
+  outprefix,
   kallisto_exe = opts_flow$get("kallisto_exe"),
   kallisto_index_path = opts_flow$get("kallisto_index_path"),
-  kallisto_opts = opts_flow$get("kallisto_opts"))
+  kallisto_opts = opts_flow$get("kallisto_opts")
+)
 }
 \arguments{
 \item{fq1}{something}

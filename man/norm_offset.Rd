@@ -4,8 +4,7 @@
 \alias{norm_offset}
 \title{Title}
 \usage{
-norm_offset(x, format = "\%Y-\%m-\%d \%H:\%M:\%S",
-  origin = "1970-01-01")
+norm_offset(x, format = "\%Y-\%m-\%d \%H:\%M:\%S", origin = "1970-01-01")
 }
 \arguments{
 \item{x}{time in character format}
