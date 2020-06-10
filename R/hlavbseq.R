@@ -60,38 +60,47 @@
 #'
 hlavbseq <- function(bam, 
                      samplename,
-                     region = "6:29690552-33111102", 
+                     # region = "6:29690552-33111102", 
                      paired_end = TRUE,
                      
-                     bwa_exe = opts_flow$get("bwa_exe"),
+                     odir = "hlavbseq",
+                     fqs,
+                     seq_sample_id,
                      
-                     hla_all_fa = opts_flow$get("hla_all_v2_fa"),
-                     hla_allele_list = opts_flow$get("hla_allele_list"),
+                     bwa_exe = opts_flow$get("bwa.exe"),
                      
-                     java_exe = opts_flow$get("java_exe"),
-                     hlavbseq_jar = opts_flow$get("hlavbseq_jar"),
-                     hlavbseq_call_hla_digits_py = opts_flow$get("hlavbseq_call_hla_digits_py"),
+                     hla_all_fa = opts_flow$get("hlavbseq.hla_v2_fa"),
+                     hla_allele_list = opts_flow$get("hlavbseq.hla_allele_list"),
+                     hla_allele_db = opts_flow$get("hlavbseq.allele_db"),
                      
-                     hla_call_digits_opts = opts_flow$get("hla_call_digits_opts")
+                     java_exe = opts_flow$get("java.exe"),
+                     hlavbseq_jar = opts_flow$get("hlavbseq.jar"),
+                     hlavbseq_call_digits_py = opts_flow$get("hlavbseq.call_digits_py"),
+                     
+                     hla_call_digits_opts = opts_flow$get("hlavbseq.call_digits_opts"),
+                     funr_exe = opts_flow$get("R.funr_exe")
                      
 ){
   
+  check_args()
   # get FQs
-  out_hla_fq = hla_fqs(bam = bam, samplename = samplename, region = region)
-  fqs = out_hla_fq$outfiles;fq1=fqs$fq1;fq2=fqs$fq2;fq3=fqs$fq3
+  # out_hla_fq = hla_fqs(bam = bam, samplename = samplename, region = region)
+  # fqs = out_hla_fq$outfiles;
+  fq1=fqs$fq1;fq2=fqs$fq2;fq3=fqs$fq3
   
   # fl nms
-  bamnm = basename(bam)
-  samnm = gsub("_1.fq", ".sam", fq1);samnm
-  hlavb_out_fl = gsub("_1.fq", "_hlavb_out.txt", fq1);hlavb_out_fl
-  hlavb_d4_fl = gsub("_1.fq", "_hlavb_d4.txt", fq1);hlavb_d4_fl
-  hla_pvacseq_fl = gsub("_1.fq", "_hla_pvac.txt", fq1);hla_pvacseq_fl
+  # bamnm = basename(bam)
+  oprefix = file.path(odir, gsub("_1.fq", "", basename(fq1)))
+  samnm = glue("{oprefix}.sam")
+  hlavb_out_fl = glue("{oprefix}_hlavb_out.txt")
+  hlavb_d4_fl = glue("{oprefix}_hlavb_d4.txt")
+  hla_pvacseq_fl = glue("{oprefix}_hla_pvac.txt")
   
   # aln
   if(paired_end){
-    cmd_hla_align = glue("{bwa_exe} mem -t 8 -P -L 10000 -a {hla_all_fa} {fq1} {fq2} > {samnm}")
+    cmd_hla_align = glue("mkdir {odir};{bwa_exe} mem -t 8 -P -L 10000 -a {hla_all_fa} {fq1} {fq2} > {samnm}")
   }else{
-    cmd_hla_align = glue("{bwa_exe} mem -t 8 -P -L 10000 -a {hla_all_fa} {fq3} > {samnm}")
+    cmd_hla_align = glue("mkdir {odir};{bwa_exe} mem -t 8 -P -L 10000 -a {hla_all_fa} {fq3} > {samnm}")
   };cmd_hla_align
   
   # hlavbseq
@@ -110,19 +119,21 @@ hlavbseq <- function(bam,
   # d 4 : HLA call resolution i4 or 6 or 8
   # ispaired : if set, twice the mean rlen for depth calculation (need to specify when the sequenced data is paired-end protocol)
   if(paired_end){
-    cmd_hla_call_digits = glue("{hlavbseq_call_hla_digits_py} -v {hlavb_out_fl} -a {hla_allele_list} {hla_call_digits_opts} --ispaired > {hlavb_d4_fl}")
+    cmd_hla_call_digits = glue("{hlavbseq_call_digits_py} -v {hlavb_out_fl} -a {hla_allele_list} {hla_call_digits_opts} --ispaired > {hlavb_d4_fl}")
   }else{
-    cmd_hla_call_digits = glue("{hlavbseq_call_hla_digits_py} -v {hlavb_out_fl} -a {hla_allele_list} {hla_call_digits_opts} > {hlavb_d4_fl}")
+    cmd_hla_call_digits = glue("{hlavbseq_call_digits_py} -v {hlavb_out_fl} -a {hla_allele_list} {hla_call_digits_opts} > {hlavb_d4_fl}")
   };cmd_hla_call_digits
   
   #to_hla_pvacseq.hlavbseq(hlavb_d4_fl, hla_pvacseq_fl)
-  cmd_hla_pvac = glue("funr my.ultraseq::to_hla_pvacseq.hlavbseq x={hlavb_d4_fl} hla_fl={hla_pvacseq_fl}")
+  hlavbseq_pvac_mhc1 = glue("{odir}/{seq_sample_id}_phlat_pvac_mhc1.txt")
+  hlavbseq_pvac_mhc2 = glue("{odir}/{seq_sample_id}_phlat_pvac_mhc2.txt")
+  cmd_hla_pvac = glue("{funr_exe} my.ultraseq::to_pvacseq.hlavbseq x={hlavb_d4_fl} outfile1={hlavbseq_pvac_mhc1} outfile2={hlavbseq_pvac_mhc2} allele_db_fl={hla_allele_db}")
   
-  cmds = list(cmd_hla = paste(out_hla_fq$flowmat$cmd, 
-                              cmd_hla_align,
-                              cmd_hlavbseq,
-                              cmd_hla_pvac,
-                              cmd_hla_call_digits, sep = "\n"))
+  cmds = list(hlavbseq = c(cmd_hla_align, cmd_hlavbseq,
+                           cmd_hla_call_digits, cmd_hla_pvac))
+  
+  # temporarily run the last cmd only
+  # cmds = list(cmd_hla = cmd_hla_pvac)
   
   
   flowmat = to_flowmat(cmds, samplename)
@@ -165,90 +176,63 @@ hlavbseq <- function(bam,
 
 
 
-#' hla_fqs
-#'
-#' @param bam 
-#' @param samplename 
-#' @param region 
-#' @param execute 
-#'
-#' @import glue
-hla_fqs <- function(bam, samplename, 
-                    
-                    region = "6:29690552-33111102", 
-                    
-                    samtools_exe = opts_flow$get("samtools_exe"),
-                    java_exe = opts_flow$get("java_exe"),
-                    java_mem = opts_flow$get("java_mem"),
-                    picard_jar = opts_flow$get("picard_jar"),
-                    
-                    execute = TRUE # not used
-){
-  
-  bamnm = basename(bam)
-  bam_hla = gsub(".bam$", "_hla.bam", bamnm)
-  bam_umap = gsub(".bam$", "_unmapped.bam", bamnm)
-  
-  fq_hla_1 = gsub("_hla.bam$", "_hla_1.fq", bam_hla)
-  fq_hla_2 = gsub("_hla.bam$", "_hla_2.fq", bam_hla)
-  fq_hla_3 = gsub("_hla.bam$", "_hla_3.fq", bam_hla)
-  
-  fq_umap_1 = gsub("_unmapped.bam$", "_umap_1.fq", bam_umap)
-  fq_umap_2 = gsub("_unmapped.bam$", "_umap_2.fq", bam_umap)
-  fq_umap_3 = gsub("_unmapped.bam$", "_umap_3.fq", bam_umap)
-  
-  fq1 = gsub("_hla.bam$", "_hla_umap_1.fq", bam_hla)
-  fq2 = gsub("_hla.bam$", "_hla_umap_2.fq", bam_hla)
-  fq3 = gsub("_hla.bam$", "_hla_umap_3.fq", bam_hla)
-  
-  # get bams  
-  cmd_bam1 = glue("{samtools_exe} view -b {bam} {region} > {bam_hla};{samtools_exe} index {bam_hla}")
-  cmd_bam2 = glue("{samtools_exe} view -b -f 12 {bam} > {bam_umap};{samtools_exe} index {bam_umap}")
-  
-  # get fqs
-  cmd_fq1 <- glue("{java_exe} {java_mem} -jar {picard_jar} SamToFastq INPUT={bam_hla} ", 
-                  "FASTQ={fq_hla_1} SECOND_END_FASTQ={fq_hla_2} UNPAIRED_FASTQ={fq_hla_3}")
-  cmd_fq2 <- glue("{java_exe} {java_mem} -jar {picard_jar} SamToFastq INPUT={bam_umap} ", 
-                  "FASTQ={fq_umap_1} SECOND_END_FASTQ={fq_umap_2} UNPAIRED_FASTQ={fq_umap_3}")
-  
-  cmd_fq = glue("cat {fq_hla_1} {fq_umap_1} > {fq1};", 
-                "cat {fq_hla_2} {fq_umap_2} > {fq2};",
-                "cat {fq_hla_3} {fq_umap_3} > {fq3};")
-  
-  cmds = list(cmd_hla_fq = glue("{cmd_bam1}\n{cmd_bam2}\n{cmd_fq1}\n{cmd_fq2}\n{cmd_fq}"))
-  flowmat = to_flowmat(cmds, samplename)
-  
-  list(flowmat = flowmat, outfiles = list(fq1 = fq1, fq2 = fq2, fq3 = fq3))
-}
 
 
 #' to_hla_pvacseq.hlavbseq
 #'
 #' @param x d4 file
-#' @param hla_fl 
+#' @param outfile1 
 #'
+#' @details more details here:
+#' http://nagasakilab.csml.org/hla/
+#' 
 #' @export
-to_hla_pvacseq.hlavbseq <- function(x, 
-                                    hla_fl, 
-                                    allele_db_fl = "~/.rsrch2/iacs/iacs_dep/sseth/ref/human/b37/annotations/hlavbseq/all_alleles.txt"){
+to_pvacseq.hlavbseq <- function(x, 
+                                outfile1, outfile2,
+                                #allele_db_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b37/annotations/hlavbseq/all_alleles.txt"
+                                allele_db_fl = opts_flow$get("hla_allele_db")
+){
   pacman::p_load(janitor, readr, dplyr)
   # x="WEX-1004-N_nochr_hla_umap_hlavb_d4.txt"
+  # x = "~/.rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/neoantigen/runs/185_003/tmp/IPCT-S2006-MOON0051-Cap2023-8-ID01_190503-A00728-0034-BHJ3W3DMXX-1-ATCACG.bwa_recalibed_hla_umap_hlavb_d4.txt"
   # hla_nethmc_db = read_tsv("nethmc_alleles.txt", col_names = "gene")$gene
+  
+  # pvac/netmhc recognized alleles
   hla_db = read_tsv(allele_db_fl, col_names = "gene")$gene
   
-  df_hla = read_tsv(x) %>% clean_names()
+  df_hla = read_tsv(x, col_types = cols(
+    Gene = col_character(),
+    Allele1 = col_character(),
+    Allele2 = col_character()
+  )) %>% clean_names()
+  head(df_hla)
   
-  # "HLA-A*02:01,HLA-B*35:01,DRB1*11:01",
-  hla_abc = filter(df_hla, gene %in% c("A", "B", "C")) %>% 
+  # "HLA-A*02:01,HLA-B*35:01",
+  hla_pvac_mhc1 = df_hla %>% 
+    dplyr::filter(gene %in% LETTERS) %>%
     mutate(allele1 = paste0("HLA-", allele1), 
            allele2 = paste0("HLA-", allele2)) %>% 
-    select(allele1, allele2) %>% unlist() %>% 
-    paste(collapse = ",")
-  #hla_abc %in% hla_db
+    dplyr::select(allele1, allele2) %>% unlist() 
   
-  cat(hla_abc, file = hla_fl)
+  # DRB1*11:01 OR DRB1*11:01-DRB1*11:01
+  hla_pvac_mhc2 = df_hla %>% 
+    dplyr::filter(!gene %in% LETTERS) %>%
+    mutate(allele = paste0(allele1, "-", allele2)) %>% 
+    select(allele1, allele2, allele) %>% unlist() 
+  
+  # filter mhc2:
+  hla_pvac_mhc2 = hla_pvac_mhc2[hla_pvac_mhc2 %in% hla_db]
+  # hla_pvac = c(hla_pvac_mhc1, hla_pvac_mhc2)
+  # # keep those recognized by pvacseq
+  # hla_pvac = hla_pvac[hla_pvac %in% hla_db]
+  # hla_pvac = hla_pvac %>% paste(collapse = ",")
+  
+  paste0(hla_pvac_mhc1, collapse = ",") %>% write(outfile1)
+  paste0(hla_pvac_mhc2, collapse = ",") %>% write(outfile2)
   
 }
+
+to_hla_pvacseq.hlavbseq = to_pvacseq.hlavbseq
 
 
 
