@@ -61,34 +61,40 @@
                                  counts,
                                  gatkcnv_intervals = opts_flow$get("gatkcnv_intervals"),
                                  gatk4_exe = opts_flow$get("gatk4_exe"),
-                                 redo = F, 
-                                 test = F){
+                                 run_cmds = F,
+                                 redo = F){
   check_args()
   cmd = glue("mkdir -p `dirname {counts}`;{gatk4_exe} --java-options '-Xmx32g' CollectReadCounts -I {bam} -L {gatkcnv_intervals} -O {counts} --format TSV --interval-merging-rule OVERLAPPING_ONLY")
   
-  if(test) return(cmd)
-  # else, actually run the cmd
-  run_cmd(cmd, target = counts, cmdname = "collectreadcounts", redo = redo)
-  counts
+  if(run_cmds){
+    # else, actually run the cmd
+    run_cmd(cmd, target = counts, cmdname = "collectreadcounts", redo = redo)
+  }
+  
+  list(cmds = cmd, outfiles = counts)
 }
+
 
 .denoise_counts <- function(counts,
                             std_cr,
                             dn_cr,
                             gatkcnv_pon_hdfs = opts_flow$get("gatkcnv_pon_hdfs"),
                             gatk4_exe = opts_flow$get("gatk4_exe"),
-                            redo = F, 
-                            test = F){
+                            run_cmds = F, redo = F){
   check_args()
   cmd = glue("{gatk4_exe} --java-options '-Xmx12g' DenoiseReadCounts ", 
              "-I {counts} --count-panel-of-normals {gatkcnv_pon_hdfs} ",
              "--standardized-copy-ratios {std_cr} ",
              "--denoised-copy-ratios {dn_cr}")
   
-  if(test) return(cmd)
+  # if(test) return(cmd)
   # else, actually run the cmd
-  run_cmd(cmd, target = dn_cr, cmdname = "denoise_counts", redo = redo)
-  dn_cr
+  if(run_cmds){
+    run_cmd(cmd, target = dn_cr, cmdname = "denoise_counts", redo = redo)
+  }
+  
+  list(cmds = cmd, outfiles = dn_cr)
+  
 }
 
 .plot_denoise_cr <- function(std_cr,
@@ -98,8 +104,7 @@
                              gatk4_exe = opts_flow$get("gatk4_exe"),
                              java_tmp = opts_flow$get("java_tmp"),
                              plot_minimum_contig_length = "46709983",
-                             redo = F, 
-                             test = F){
+                             run_cmds = F, redo = F){
   
   check_args();cmdname = "plot_denoise_cr"
   cmd = glue("{gatk4_exe} --java-options '-Xmx12g -Djava.io.tmpdir={java_tmp}' PlotDenoisedCopyRatios ", 
@@ -109,11 +114,16 @@
              "--minimum-contig-length 46709983 ",
              "--output . ",
              "--output-prefix {outprefix}")
-  if(test) return(cmd)
+  
+  # if(test) return(cmd)
   # else, actually run the cmd
   outplot = glue("{outprefix}.denoisedLimit4.png")
-  run_cmd(cmd, target = outplot, cmdname = cmdname, 
-          stderr = glue("{outprefix}_{cmdname}.log"), redo = redo)
+  if(run_cmds){
+    run_cmd(cmd, target = outplot, cmdname = cmdname, 
+            stderr = glue("{outprefix}_{cmdname}.log"), redo = redo)
+  }
+  
+  list(cmds = cmd, outfiles = outplot)
   
 }
 
@@ -124,19 +134,23 @@
                                     gatk4_exe = opts_flow$get("gatk4_exe"),
                                     ref_fasta = opts_flow$get("ref_fasta"),
                                     germline_variants_biallelic_vcf = opts_flow$get("germline_variants_biallelic_vcf"),
-                                    redo = F, 
-                                    test = F){
+                                    
+                                    run_cmds = T, redo = F){
   check_args()
   cmd = glue("mkdir -p `dirname {acounts}`;{gatk4_exe} --java-options '-Xmx32g' CollectAllelicCounts ", 
              "-L {germline_variants_biallelic_vcf} ", 
              "-I {bam} ", 
              "-R {ref_fasta} ", 
              "-O {acounts}")
-  if(test) return(cmd)
-  # else, actually run the cmd
-  run_cmd(cmd, target = acounts, cmdname = "collect_allelic_counts", 
-          stderr = glue("{outprefix}_collect_allelic_counts.log"), redo = redo)
-  acounts
+  
+  # if(test) return(cmd)
+  if(run_cmds){
+    # else, actually run the cmd
+    run_cmd(cmd, target = acounts, 
+            cmdname = "collect_allelic_counts", 
+            stderr = glue("{outprefix}_collect_allelic_counts.log"), redo = redo)
+  }
+  list(cmds = cmd, outfiles = acounts)
 }
 
 .model_segments <- function(bam,
@@ -160,16 +174,17 @@
                             
                             gatkcnv_modelseg_params = "--minimum-total-allele-count 30 --maximum-number-of-smoothing-iterations 100 ",
                             redo = F, 
-                            test = F){
+                            test = F, run_cmds = F
+){
   
   check_args(ignore = "normal_acounts")
   cmd1 = glue("{gatk4_exe} --java-options '-Xmx16g' ModelSegments ", 
-             "--allelic-counts {acounts} ",
-             "--denoised-copy-ratios {dn_cr} ",
-             # 30 is default: alleleic copy ratios
-             # default 25 for WGS
-             "{gatkcnv_modelseg_params} ",
-             "--output . --output-prefix {outprefix}")
+              "--allelic-counts {acounts} ",
+              "--denoised-copy-ratios {dn_cr} ",
+              # 30 is default: alleleic copy ratios
+              # default 25 for WGS
+              "{gatkcnv_modelseg_params} ",
+              "--output . --output-prefix {outprefix}")
   if(!is.null(normal_acounts)){
     # message("adding matched normal counts to ModelSegments")
     cmd1 = glue("{cmd1} --normal-allelic-counts {normal_acounts}")
@@ -177,7 +192,7 @@
   
   # not sure about the outputs of this one
   cmd2 = glue("{gatk4_exe} --java-options '-Xmx16g' CallCopyRatioSegments ", 
-             "--input {cr_seg} --output {called_seg}")
+              "--input {cr_seg} --output {called_seg}")
   
   cmd3 = glue("{gatk4_exe} --java-options '-Xmx16g' PlotModeledSegments ", 
               "--denoised-copy-ratios {dn_cr} ", 
@@ -187,24 +202,27 @@
               "--minimum-contig-length {46709983} ", 
               "--output . ", 
               "--output-prefix {outprefix}")
-
   
-  if(test) return(c(cmd1, cmd2, cmd3))
+  
   # else, actually run the cmd
-  run_cmd(cmd1, target = final_seg, cmdname = "modelsegments", 
-          stderr = glue("{outprefix}_modelsegments.log"), redo = redo)
-  run_cmd(cmd2, target = called_seg, cmdname = "CallCopyRatioSegments", 
-          stderr = glue("{outprefix}_callcopyratiosegments.log"), redo = redo)
-  # 185_145_GB-D_clean_plotmodeledsegments.log
-  run_cmd(cmd3, target = glue("{outprefix}.modeled.png"), cmdname = "PlotModeledSegments", 
-          stderr = glue("{outprefix}_plotmodeledsegments.log"), redo = redo)
-
-  called_seg
+  if(run_cmds){
+    run_cmd(cmd1, target = final_seg, cmdname = "modelsegments", 
+            stderr = glue("{outprefix}_modelsegments.log"), redo = redo)
+    run_cmd(cmd2, target = called_seg, cmdname = "CallCopyRatioSegments", 
+            stderr = glue("{outprefix}_callcopyratiosegments.log"), redo = redo)
+    # 185_145_GB-D_clean_plotmodeledsegments.log
+    run_cmd(cmd3, target = glue("{outprefix}.modeled.png"), cmdname = "PlotModeledSegments", 
+            stderr = glue("{outprefix}_plotmodeledsegments.log"), redo = redo)
+  }
+  
+  list(cmds = c(cmd1, cmd2, cmd3), outfiles = c(called_seg, glue("{outprefix}.modeled.png")))
+  
 }
 
 
 gatkcnv_somatic_pon <- function(df_trk,
-                            num_cores = nrow(df_trk)){
+                                num_cores = nrow(df_trk),
+                                run_cmds = F){
   
   # ceate a new trk with ALL reqd files
   df_trk %<>% 
@@ -237,7 +255,7 @@ gatkcnv_somatic_pon <- function(df_trk,
   tmp = mclapply(1:nrow(df_trk), function(i){
     .collect_read_counts(df_trk$BAM[i], 
                          df_trk$gatkcnv_counts[i],
-                         test = test, redo = F)
+                         run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   warnings()
@@ -248,7 +266,7 @@ gatkcnv_somatic_pon <- function(df_trk,
                     counts = df_trk$gatkcnv_counts[i],
                     std_cr = df_trk$gatkcnv_std_cr[i],
                     dn_cr = df_trk$gatkcnv_dn_cr[i],
-                    test = test)
+                    run_cmds=run_cmds)
   }, mc.cores = num_cores)
   # tmp
   warnings()
@@ -258,7 +276,7 @@ gatkcnv_somatic_pon <- function(df_trk,
     .plot_denoise_cr(std_cr = df_trk$gatkcnv_std_cr[i],
                      dn_cr = df_trk$gatkcnv_dn_cr[i],
                      outprefix = df_trk$oprefix[i], 
-                     test = test, redo = F)
+                     run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   warnings()
@@ -268,7 +286,7 @@ gatkcnv_somatic_pon <- function(df_trk,
   tmp = mclapply(1:nrow(df_trk), function(i){
     .collect_allelic_counts(bam = df_trk$BAM[i], 
                             acounts = df_trk$gatkcnv_acounts[i],
-                            test = test)
+                            run_cmds=run_cmds)
   }, mc.cores = 1)
   # tmp
   warnings()
@@ -286,10 +304,10 @@ gatkcnv_somatic_pon <- function(df_trk,
                     final_seg = df_trk$gatkcnv_womn_final_seg[i],
                     gatkcnv_modelseg_params = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
                     called_seg = df_trk$gatkcnv_womn_called_seg[i],
-                    test = test, redo = F)
+                    run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
-
+  
   # Number of segmentation-smoothing iterations per MCMC model refit. 
   # (Increasing this will decrease runtime, but the final number of segments may be higher. 
   # Setting this to 0 will completely disable model refitting between iterations.)
@@ -309,12 +327,14 @@ gatkcnv_somatic_matched <- function(trk,
                                     samplename,
                                     # outpath = "gatkcnv/",
                                     num_cores = nrow(df_trk), 
-                                    test = T
-                                    ){
+                                    run_cmds = F){
   # check generic columns
   trk = metadata_for_dnaseq_tools(trk)
   expect_columns(trk, c("outprefix", "outprefix_paired"))
-
+  
+  trk = mutate(outprefix = file.path(pipe_str$gtkcnv$dir, outprefix), 
+         outprefix_paired = file.path(pipe_str$gtkcnv$dir, outprefix_paired))
+  
   # ceate a new trk with ALL reqd files
   trk %<>% 
     mutate(
@@ -347,7 +367,7 @@ gatkcnv_somatic_matched <- function(trk,
   out_readcnts = mclapply(1:nrow(trk), function(i){
     .collect_read_counts(trk$bam[i], 
                          trk$gatkcnv_counts[i],
-                         test = test, redo = F)
+                         run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   warnings()
@@ -357,7 +377,7 @@ gatkcnv_somatic_matched <- function(trk,
     .denoise_counts(counts = trk$gatkcnv_counts[i],
                     std_cr = trk$gatkcnv_std_cr[i],
                     dn_cr = trk$gatkcnv_dn_cr[i],
-                    test = test)
+                    run_cmds=run_cmds)
   }, mc.cores = num_cores)
   # tmp
   warnings()
@@ -367,7 +387,7 @@ gatkcnv_somatic_matched <- function(trk,
     .plot_denoise_cr(std_cr = trk$gatkcnv_std_cr[i],
                      dn_cr = trk$gatkcnv_dn_cr[i],
                      outprefix = trk$outprefix[i], 
-                     test = test, redo = F)
+                     run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   warnings()
@@ -377,7 +397,7 @@ gatkcnv_somatic_matched <- function(trk,
   out_acounts = mclapply(1:nrow(trk), function(i){
     .collect_allelic_counts(bam = trk$bam[i], 
                             acounts = trk$gatkcnv_acounts[i],
-                            test = test)
+                            run_cmds=run_cmds)
   }, mc.cores = 1)
   # tmp
   warnings()
@@ -397,7 +417,7 @@ gatkcnv_somatic_matched <- function(trk,
                     final_seg = trk_tum$gatkcnv_final_seg[i],
                     gatkcnv_modelseg_params = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
                     called_seg = trk_tum$gatkcnv_called_seg[i],
-                    test = test, redo = F)
+                    run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   
@@ -415,7 +435,7 @@ gatkcnv_somatic_matched <- function(trk,
   # write_tsv(df_trk, path = "gatkcnv/df_trk.tsv")
   cmds <- list(gtkcnv.splt = unlist(out_readcnts), 
                gtkcnv.splt = unlist(out_acounts),
-                 gtkcnv.mrg = unlist(out_dr),
+               gtkcnv.mrg = unlist(out_dr),
                gtkcnv.mrg = unlist(out_plot_dr),
                gtkcnv.mrg = unlist(out_seg))
   # mutect_gather_bams = cmd_mutect_gather_bams

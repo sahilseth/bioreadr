@@ -184,78 +184,6 @@ if(FALSE){
   
 }
 
-# facets ART WEX B1 --------
-if(FALSE){
-  # funr devtools::install pkg=~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/
-  
-  library(pacman)
-  p_load(flowr, tidyverse, glue, janitor)
-  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/facets.R')
-  
-  df_pairs = params::read_sheet("~/projects/samplesheets/tnbc/seq_gm_full_details.xlsx", sheet = "pt_pairs")
-  df_pairs = df_pairs[complete.cases(df_pairs),]
-  
-  bampath = "/rsrch2/iacs/ngs_runs/sahil_170713_MS_BREAST_PDX_SPANCER/bams"
-  bampath = "/rsrch2/iacs/ngs_runs/sahil_180301_pre16_art09/bams"
-  odir = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/facets"
-  
-  
-  
-  i = 1
-  tmp = lapply(1:nrow(df_pairs), function(i){
-    facets_flo(bam_t = file.path(bampath, df_pairs$bam1[i]),
-               bam_n = file.path(bampath, df_pairs$bam2[i]),
-               samplename = df_pairs$participantid[i],
-               oprefix = df_pairs$samplelbl1[i])
-  })
-  flowmat = lapply(tmp, "[[", "flowmat") %>% bind_rows()
-  write_tsv(flowmat, glue("{odir}/flowmat_b6.tsv"))
-  setwd(odir)
-  to_flow(x='flowmat_b6.tsv', def='flowdef.tsv', flowname='facets', flow_run_path=odir, execute=TRUE)
-  #write_tsv(to_flowdef(flowmat), glue("{odir}/flowdef0.tsv"))
-  # flowr to_flow x=flowmat.tsv def=flowdef.tsv flowname=facets flow_run_path=. execute=TRUE
-  
-  # add to flow:
-  facetfls = lapply(tmp, "[[", "oprefix") %>% unlist()
-  facetfits = glue("{facetfls}_fit.rds")
-  
-  # get pyclone flow:
-  df = filter(df_pairs, participantid == "x185_002")
-  
-  purities = sapply(facetfits, facets_purity)
-  
-  # get facet files
-  # get mut files
-  
-  #  
-  
-}
-
-
-if(FALSE){
-  library(facets)
-  library(glue)
-  setwd(dirname(rcfl))
-  
-  # b0
-  rcfl = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/MS-PDX-300x-1728D-CB223_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bampileup.tmp.gz"
-  facets_r(rcfl,flowr::get_unique_id("facets_bam0"),pre_snp.nbhd=250,pre_cval=50,proc_cval=300,proc_min.nhet=30)
-  facets_r(rcfl,flowr::get_unique_id("facets_bam0"),pre_snp.nbhd=250,pre_cval=100,proc_cval=300,proc_min.nhet=30)
-  facets_r(rcfl,flowr::get_unique_id("facets_bam0"),pre_snp.nbhd=250,pre_cval=300,proc_cval=300,proc_min.nhet=30)
-  
-  # b1
-  rcfl = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/MS-PDX-300x-1728D-CB224_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bampileup.tmp.gz"
-  facets_r(rcfl,flowr::get_unique_id("facets_bam1"),pre_snp.nbhd=250,pre_cval=50,proc_cval=300,proc_min.nhet=30)
-  facets_r(rcfl,flowr::get_unique_id("facets_bam1"),pre_snp.nbhd=250,pre_cval=100,proc_cval=300,proc_min.nhet=30)
-  facets_r(rcfl,flowr::get_unique_id("facets_bam1"),pre_snp.nbhd=250,pre_cval=25,proc_cval=300,proc_min.nhet=30)
-  
-  # bs
-  rcfl = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/MS-PDX-300x-1728D-CB225_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bampileup.tmp.gz"
-  facets_r(rcfl,flowr::get_unique_id("facets_bams"),pre_snp.nbhd=250,pre_cval=50,proc_cval=300,proc_min.nhet=30)
-  facets_r(rcfl,flowr::get_unique_id("facets_bams"),pre_snp.nbhd=250,pre_cval=100,proc_cval=300,proc_min.nhet=30)
-  facets_r(rcfl,flowr::get_unique_id("facets_bams"),pre_snp.nbhd=250,pre_cval=300,proc_cval=300,proc_min.nhet=30)
-  
-}
 
 #fitrds = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/x185_006_T0_fit.rds"
 facets_purity <- function(fitrds){
@@ -459,7 +387,7 @@ facets_r <- function(rcfl,
 
 
 facets_read_to_granges <- function(...){
-  facets_read.seg(...)
+  facets_read.segfl(...)
 }
 
 
@@ -481,7 +409,7 @@ facets_read_to_granges <- function(...){
 #       well as cellular fraction (cf), total (tcn) and lesser (lcn)
 #       copy number of each segment and their em counterpart (with
 #       .em suffix)
-read_facets.trk.seg <- function(df_trk, 
+read_facets_seg_igv.trk <- function(df_trk, 
                                 col_fl, 
                                 col_samplename){
   
@@ -563,6 +491,78 @@ read_facets.trk.fits <- function(df_trk){
   df_facet_summ
 }
 
+# facets ART WEX B1 --------
+if(FALSE){
+  # funr devtools::install pkg=~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/
+  
+  library(pacman)
+  p_load(flowr, tidyverse, glue, janitor)
+  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/facets.R')
+  
+  df_pairs = params::read_sheet("~/projects/samplesheets/tnbc/seq_gm_full_details.xlsx", sheet = "pt_pairs")
+  df_pairs = df_pairs[complete.cases(df_pairs),]
+  
+  bampath = "/rsrch2/iacs/ngs_runs/sahil_170713_MS_BREAST_PDX_SPANCER/bams"
+  bampath = "/rsrch2/iacs/ngs_runs/sahil_180301_pre16_art09/bams"
+  odir = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/facets"
+  
+  
+  
+  i = 1
+  tmp = lapply(1:nrow(df_pairs), function(i){
+    facets_flo(bam_t = file.path(bampath, df_pairs$bam1[i]),
+               bam_n = file.path(bampath, df_pairs$bam2[i]),
+               samplename = df_pairs$participantid[i],
+               oprefix = df_pairs$samplelbl1[i])
+  })
+  flowmat = lapply(tmp, "[[", "flowmat") %>% bind_rows()
+  write_tsv(flowmat, glue("{odir}/flowmat_b6.tsv"))
+  setwd(odir)
+  to_flow(x='flowmat_b6.tsv', def='flowdef.tsv', flowname='facets', flow_run_path=odir, execute=TRUE)
+  #write_tsv(to_flowdef(flowmat), glue("{odir}/flowdef0.tsv"))
+  # flowr to_flow x=flowmat.tsv def=flowdef.tsv flowname=facets flow_run_path=. execute=TRUE
+  
+  # add to flow:
+  facetfls = lapply(tmp, "[[", "oprefix") %>% unlist()
+  facetfits = glue("{facetfls}_fit.rds")
+  
+  # get pyclone flow:
+  df = filter(df_pairs, participantid == "x185_002")
+  
+  purities = sapply(facetfits, facets_purity)
+  
+  # get facet files
+  # get mut files
+  
+  #  
+  
+}
+
+
+if(FALSE){
+  library(facets)
+  library(glue)
+  setwd(dirname(rcfl))
+  
+  # b0
+  rcfl = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/MS-PDX-300x-1728D-CB223_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bampileup.tmp.gz"
+  facets_r(rcfl,flowr::get_unique_id("facets_bam0"),pre_snp.nbhd=250,pre_cval=50,proc_cval=300,proc_min.nhet=30)
+  facets_r(rcfl,flowr::get_unique_id("facets_bam0"),pre_snp.nbhd=250,pre_cval=100,proc_cval=300,proc_min.nhet=30)
+  facets_r(rcfl,flowr::get_unique_id("facets_bam0"),pre_snp.nbhd=250,pre_cval=300,proc_cval=300,proc_min.nhet=30)
+  
+  # b1
+  rcfl = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/MS-PDX-300x-1728D-CB224_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bampileup.tmp.gz"
+  facets_r(rcfl,flowr::get_unique_id("facets_bam1"),pre_snp.nbhd=250,pre_cval=50,proc_cval=300,proc_min.nhet=30)
+  facets_r(rcfl,flowr::get_unique_id("facets_bam1"),pre_snp.nbhd=250,pre_cval=100,proc_cval=300,proc_min.nhet=30)
+  facets_r(rcfl,flowr::get_unique_id("facets_bam1"),pre_snp.nbhd=250,pre_cval=25,proc_cval=300,proc_min.nhet=30)
+  
+  # bs
+  rcfl = "~/.rsrch2/iacs/iacs_dep/sseth/tmp/test_clone_conv/185_006/facets/MS-PDX-300x-1728D-CB225_sahil-170713-MS-BREAST-PDX-SPANCER-1-NoIndex.bwa_recalibed.bampileup.tmp.gz"
+  facets_r(rcfl,flowr::get_unique_id("facets_bams"),pre_snp.nbhd=250,pre_cval=50,proc_cval=300,proc_min.nhet=30)
+  facets_r(rcfl,flowr::get_unique_id("facets_bams"),pre_snp.nbhd=250,pre_cval=100,proc_cval=300,proc_min.nhet=30)
+  facets_r(rcfl,flowr::get_unique_id("facets_bams"),pre_snp.nbhd=250,pre_cval=300,proc_cval=300,proc_min.nhet=30)
+  
+}
 
 #out = funr(commandArgs(trailingOnly = TRUE))
 
