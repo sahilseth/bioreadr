@@ -6,6 +6,7 @@ rnaseqcRNASeQC<-function(samplebamlist,outwkdir,
                          rRnaFa="/scratch/rists/hpcapps/reference/human/broad_hg19/annotations/gencode/human_all_rRNA.fasta",
                          gtf="/scratch/rists/hpcapps/reference/human/broad_hg19/annotations/gencode/gencode.v7.annotation_goodContig.gtf",
                          execute=FALSE,verbose=FALSE) {
+  
   cmd <-paste(java, '-Xmx8g -jar',rnaSeqcjar, '-n 1000 -s',samplebamlist,'-bwa',bwa,'-t',gtf,
               '-r',reffa,'-BWArRNA', rRnaFa, '-o',outwkdir,sep=' ')
   cmd <- sprintf("WD=$(pwd);cd %s; %s; cd $WD", outwkdir, cmd) 
@@ -17,6 +18,7 @@ rnaseqcRNASeQC<-function(samplebamlist,outwkdir,
   }
   return(cmd);
 }
+
 rnaseqc2samplelist<-function(runName,outfile,proj,indir,bampostfix="recalibed.bam",
                              bamlistpl="/scratch/iacs/iacs_dep/xsong3/check_new_info/runcodes/rnaseqc_run2samplebamlist.pl",
                              levelii= "/scratch/iacs/gcc/levelii",
