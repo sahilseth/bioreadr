@@ -254,6 +254,10 @@ pyclone_prep_input <- function(segfl, mutfl,
                                mutfl_type = c("mutect_ann", "mutect_bamreadcount"), 
                                outfile){
   
+  check_args()
+  segfl_type = match.arg(segfl_type)
+  mutfl_type = match.arg(mutfl_type)
+  
   message("reading seg file...")
   if(segfl_type == "sequenza")
     gr_seg = seqz_read(segfl)$gr_seg
