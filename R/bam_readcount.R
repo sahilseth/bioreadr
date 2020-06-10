@@ -48,6 +48,10 @@
 #' @param samplename something
 #' @param outfile something
 #' @param fa_fl something
+#' 
+#' @details should be 1-based:
+#' 
+#' The list of regions should be formatted as chromosome start and end. Each field should be tab separated and coordinates should be 1-based.
 #'
 #' @export
 bam_readcount <- function(bam, 
@@ -112,7 +116,8 @@ bam_readcount.parseline <- function(x){
 #' @export
 bam_readcount.parse <- function(x, 
                                 samplename,
-                                bed){
+                                bed,
+                                type = c("snv", "indel")){
   
   library(params)
   library(dplyr)
@@ -120,7 +125,10 @@ bam_readcount.parse <- function(x,
   tmp = scan(x, what = "character", sep = "\n") %>% unique()
   
   dat = lapply(tmp, bam_readcount.parseline) %>% bind_rows()
-  dat2 = select(dat, chr, start = pos, ref_allele = ref, alt_allele = base, alt_count = count) %>% 
+  if(nrow(dat) == 0)
+    return(data.frame(key = NA, alt_count = NA, dp = NA))
+  
+  dat2 = dplyr::select(dat, chr, start = pos, ref_allele = ref, alt_allele = base, alt_count = count) %>% 
     mutate(start = as.integer(start), 
            end = start, 
            alt_count = as.integer(alt_count), 
@@ -140,17 +148,17 @@ bam_readcount.parse <- function(x,
   # combine with bed
   if(!is.data.frame(bed)){
     if(file.exists(bed)){
-      bed = read_tsv(bed, col_types = cols(.default = col_character())) %>% 
-        mutate(start = as.integer(start), 
-               end = as.integer(end))
+      bed = read_tsv(bed, col_types = cols(.default = col_character()))
+      colnames(bed)[1:5] = c("chr", "start", "end", "ref_allele", "alt_allele")
+      bed %<>% mutate(start = as.integer(start), 
+                      end = as.integer(end))
     }
   }
-    
-  
-  dat3 = left_join(bed, dat2, by = c("chr", "start", "end", 
-                                     "ref_allele", "alt_allele"))
-  
 
+  dat3 = tidylog::left_join(bed, dat2, 
+                            by = c("chr", "start", "end", "ref_allele", "alt_allele"))
+  
+  
 }
 
 
@@ -168,16 +176,16 @@ bam_readcount.parse <- function(x,
 #' @import parallel
 #' 
 #' @export
-bam_readcount_r <- function(trk, 
-                            col_fl = "MUT", 
-                            col_bam = "BAM",
-                            col_samp = "NAME",
-                            execute = F,
-                            bamreadcount_exe = "~/apps/conda/3.6/bin/bam-readcount",
-                            force_redo = F,
-                            fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta"
-                            
-                            ){
+bam_readcount_r.mutect <- function(trk, 
+                                   col_fl = "MUT", 
+                                   col_bam = "BAM",
+                                   col_samp = "NAME",
+                                   execute = F,
+                                   bamreadcount_exe = "~/apps/conda/3.6/bin/bam-readcount",
+                                   force_redo = F,
+                                   fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta"
+                                   
+){
   
   # pacman::p_load(flowr, parallel)
   
@@ -189,7 +197,7 @@ bam_readcount_r <- function(trk,
   # # make sure trk has the reqd columns
   # cols_expected = c("mutect_fl", "sample1", "file1")
   # testthat::expect_named(trk, cols_expected, ignore.order = TRUE, ignore.case = TRUE)
-
+  
   message("reading mutect ...")
   df_mutect = mutect.read(trk, 
                           col_fl = col_fl,
@@ -233,8 +241,8 @@ bam_readcount_r <- function(trk,
   message("parse each of the files ...")
   tmp = lapply(1:nrow(trk), function(i){
     df_bamreadcount = bam_readcount.parse(x = bamreadcnt_fl[i], 
-                        samplename = trk[i, "NAME"], 
-                        bed = "df_bed.tsv")
+                                          samplename = trk[i, "NAME"], 
+                                          bed = "df_bed.tsv")
     write_tsv(df_bamreadcount, bamreadcnt_ann_fl[i])
   }) %>% bind_rows()
   
@@ -248,8 +256,42 @@ bam_readcount_r <- function(trk,
 
 
 
-
-
+bam_readcount_pipe.df_mut <- function(df_mut){
+  
+  
+  # create bed
+  
+  
+  out = bam_readcount(bam = trk[, "BAM"], 
+                      samplename = trk[, "NAME"], 
+                      outfile = bamreadcnt_fl, 
+                      fa_fl = fa_fl,
+                      bamreadcount_exe = bamreadcount_exe,
+                      bed = "df_bed.tsv")
+  
+  message("run bamreacount ...")
+  out$flowmat$cmd = paste0(out$flowmat$cmd, " 2> ", trk[, "NAME"], ".bamreadcount.log");
+  print(out$flowmat$cmd)
+  
+  # if execute and some files do not exists
+  # OR if redo == T
+  if(execute & any(!file.exists(bamreadcnt_fl)) | force_redo)
+    tmp = parallel::mclapply(out$flowmat$cmd, system, mc.cores = length(out$flowmat$cmd))
+  
+  message("parse each of the files ...")
+  tmp = lapply(1:nrow(trk), function(i){
+    df_bamreadcount = bam_readcount.parse(x = bamreadcnt_fl[i], 
+                                          samplename = trk[i, "NAME"], 
+                                          bed = "df_bed.tsv")
+    write_tsv(df_bamreadcount, bamreadcnt_ann_fl[i])
+  }) %>% bind_rows()
+  
+  trk$MUT_RECALL = bamreadcnt_ann_fl
+  write_tsv(trk, "trk.tsv")
+  write_rds(tmp, "df_bamreadcount.rds")
+  
+  list(trk = trk, df_bamreadcount = tmp)
+}
 
 
 
