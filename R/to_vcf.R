@@ -116,7 +116,8 @@ if(FALSE){
 #' @import pacman
 #' 
 #' @export
-to_vcf.mutect_call_stats <- function(x, outfile){
+to_vcf.mutect_call_stats <- function(x, 
+                                     outfile){
   
   pacman::p_load(rlogging)
   rlogging::message("loading file")
@@ -156,7 +157,7 @@ to_vcf.mutect_call_stats <- function(x, outfile){
     init_n_lod = round(as.integer(init_n_lod), 2),
     normal_f = n_alt_count/n_dp,
     
-    INFO = glue("TLOD={t_lod_fstar}:NLOD={init_n_lod}:TAF={tumor_f}:TDP={t_dp}:NAF={normal_f};NDP={n_dp}"), 
+    INFO = glue("TLOD={t_lod_fstar};NLOD={init_n_lod};TAF={tumor_f};TDP={t_dp};NAF={normal_f};NDP={n_dp}"), 
     FORMAT = "GT:GQ:AD:AF:DP",
     tumor = glue("0/1:.:{t_ref_count},{t_alt_count}:{tumor_f}:{t_dp}"),
     normal = glue("0/0:.:{n_ref_count},{n_alt_count}:{normal_f}:{n_dp}"))
@@ -181,7 +182,7 @@ to_vcf.mutect_call_stats <- function(x, outfile){
 }
 
 
-#' to_vcf.mutect_call_stats
+#' to_vcf.mutect1.7_extended_tsv
 #'
 #' Assumes fixed coloumns of VCF
 #' 
@@ -198,8 +199,8 @@ to_vcf.mutect1.7_extended_tsv <- function(x, outfile){
     stop("writing compressed files is not supported")
   
   # x = "/rsrch3/home/iacs/sseth/flows/SS/sarco/jco/wex/mutect1/WEX-sarco10-T___matched_mutect.merged.tsv.gz"
-  pacman::p_load(rlogging)
-  rlogging::message("loading file")
+  #pacman::p_load(rlogging)
+  message("loading file")
   if(is.data.frame(x))
     df = as.data.frame(x, stringsAsFactors = FALSE)
   else
@@ -209,7 +210,7 @@ to_vcf.mutect1.7_extended_tsv <- function(x, outfile){
   # "\#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT";
   
   # need to encode NA, as .
-  rlogging::message("parsing info/format fields")
+  message("parsing info/format fields")
   # table(df$failure_reasons, df$judgement, useNA = "always")
   # NA: PASS, otherwise we have a reason
   tmp = df$failure_reasons %>% strsplit(split = ",") %>% unlist()
@@ -242,7 +243,7 @@ to_vcf.mutect1.7_extended_tsv <- function(x, outfile){
     sb = gsub("\\(", "", strand_bias_counts),
     sb = gsub("\\)", "", sb),
     
-    INFO = glue("TLOD={t_lod_fstar}:NLOD={init_n_lod}:TAF={tumor_f}:TDP={t_dp}:NAF={normal_f};NDP={n_dp}"), 
+    INFO = glue("TLOD={t_lod_fstar};NLOD={init_n_lod};TAF={tumor_f};TDP={t_dp};NAF={normal_f};NDP={n_dp}"), 
     FORMAT = "GT:GQ:AD:AF:DP:SB",
     tumor = glue("0/1:.:{t_ref_count},{t_alt_count}:{tumor_f}:{t_dp}:{sb}"),
     # should not matter as SB from normal is NEVER used....
@@ -261,6 +262,215 @@ to_vcf.mutect1.7_extended_tsv <- function(x, outfile){
                              tumor_name, normal_name)
   
   rlogging::message("writing out a gz file: ", outfile)
+  # write header
+  header = .mutect1_header()
+  # gz1 <- gzfile(outfile, "w")
+  cat(header, file = outfile, sep = "\n")
+  write_tsv(df_vcf_final, outfile, append = T, col_names = T)
+  # close(gz1)
+}
+
+#' to_vcf.mutect1.7_extended_tsv
+#'
+#' Assumes fixed coloumns of VCF
+#' 
+#' @param x 
+#' @param outfile ouput VCF file
+#' 
+#' @import pacman
+#' 
+#' @export
+to_vcf.mutect1.7_cgl_ann <- function(x, outfile, 
+                                     tumor_name, normal_name,
+                                     
+                                     verbose = T){
+  
+  ext = tools::file_ext(outfile)
+  if(ext == "gz")
+    stop("writing compressed files is not supported")
+  
+  # x = "/rsrch3/home/iacs/sseth/flows/SS/sarco/jco/wex/mutect1/WEX-sarco10-T___matched_mutect.merged.tsv.gz"
+  #pacman::p_load(rlogging)
+  if(verbose)
+    message("loading file")
+  
+  if(is.data.frame(x))
+    df = as.data.frame(x, stringsAsFactors = FALSE)
+  else
+    df = read_tsv(x, col_types = cols(.default = col_character()))
+  
+  # MAIN VCF cols:
+  # "\#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT";
+  
+
+  # need to encode NA, as .
+  if(verbose)
+    message("parsing info/format fields")
+  # table(df$failure_reasons, df$judgement, useNA = "always")
+  # NA: PASS, otherwise we have a reason
+  #tmp = df$failure_reasons %>% strsplit(split = ",") %>% unlist()
+  # table(tmp) %>% names()
+  df_vcf = df %>% 
+    # we dont have a filter column, just add one
+    mutate(FILTER = "PASS") %>% 
+    dplyr::select(CHROM = chrom, 
+                  POS = start,
+                  REF = ref_allele, 
+                  ALT = alt_allele, 
+                  FILTER = FILTER, 
+                  everything()) %>% 
+    dplyr::mutate(ID = ".", 
+                  QUAL = ".",
+                  FILTER = ifelse(is.na(FILTER), "PASS", FILTER))
+  # df_vcf
+  # FORMAT
+  # INFO
+  df_vcf = df_vcf %>% mutate(
+    t_alt_max_mapq,
+    t_ref_count = as.integer(t_ref_count),
+    t_alt_count = as.integer(t_alt_count),
+    n_ref_count = as.integer(n_ref_count),
+    n_alt_count = as.integer(n_alt_count),
+    
+    t_dp = t_ref_count + t_alt_count,
+    n_dp = n_ref_count + n_alt_count,
+    t_lod_fstar = round(as.integer(t_lod_fstar), 2),
+    init_n_lod = round(as.integer(init_n_lod), 2),
+    normal_f = n_alt_count/n_dp) %>% 
+    
+    mutate(
+      strand1_sample = ifelse(is.na(strand1_sample), ".", strand1_sample),
+      strand1_ref = ifelse(is.na(strand1_ref), ".", strand1_ref),
+      strand2_sample = ifelse(is.na(strand2_sample), ".", strand2_sample),
+      strand2_ref = ifelse(is.na(strand2_ref), ".", strand2_ref),
+      sb = glue("{strand1_sample},{strand1_ref},{strand2_sample},{strand2_ref}"),
+    # sb = gsub("\\(", "", strand_bias_counts),
+    # sb = gsub("\\)", "", sb),
+    
+    INFO = glue("TLOD={t_lod_fstar};NLOD={init_n_lod};TAF={tumor_f};TDP={t_dp};NAF={normal_f};NDP={n_dp}"), 
+    FORMAT = "GT:GQ:AD:AF:DP:SB",
+    tumor = glue("0/1:.:{t_ref_count},{t_alt_count}:{tumor_f}:{t_dp}:{sb}"),
+    # should not matter as SB from normal is NEVER used....
+    # it seems combine variants from GATK is skipping this value if its missing!
+    normal = glue("0/0:.:{n_ref_count},{n_alt_count}:{normal_f}:{n_dp}:-99,-99,-99,-99"))
+  
+  # extract tumor normal name
+  if(missing(tumor_name))
+    tumor_name = df_vcf$tumor_name[1]
+  if(missing(normal_name))
+    normal_name = df_vcf$normal_name[1] 
+  
+  df_vcf_final = dplyr::select(df_vcf, 
+                               CHROM, POS, ID, REF, ALT, QUAL, 
+                               FILTER, INFO, FORMAT, 
+                               tumor, normal)
+  colnames(df_vcf_final) = c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL",
+                             "FILTER", "INFO", "FORMAT", 
+                             tumor_name, normal_name)
+  if(verbose)
+    message("writing out a gz file: ", outfile)
+  # write header
+  header = .mutect1_header()
+  # gz1 <- gzfile(outfile, "w")
+  cat(header, file = outfile, sep = "\n")
+  write_tsv(df_vcf_final, outfile, append = T, col_names = T)
+  # close(gz1)
+}
+
+#' to_vcf.mutect1.7_extended_tsv
+#'
+#' Assumes fixed coloumns of VCF
+#' 
+#' @param x 
+#' @param outfile ouput VCF file
+#' 
+#' @import pacman
+#' 
+#' @details this one lacks strand etc and chr is named differently
+#' 
+#' @export
+to_vcf.mutect1.7_cgl_ann_v2 <- function(x, outfile, 
+                                     tumor_name, normal_name,
+                                     
+                                     verbose = T){
+  
+  ext = tools::file_ext(outfile)
+  if(ext == "gz")
+    stop("writing compressed files is not supported")
+  
+  # x = "/rsrch3/home/iacs/sseth/flows/SS/sarco/jco/wex/mutect1/WEX-sarco10-T___matched_mutect.merged.tsv.gz"
+  #pacman::p_load(rlogging)
+  if(verbose)
+    message("loading file")
+  
+  if(is.data.frame(x))
+    df = as.data.frame(x, stringsAsFactors = FALSE)
+  else
+    df = read_tsv(x, col_types = cols(.default = col_character()))
+  
+  # MAIN VCF cols:
+  # "\#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT";
+  
+
+  # need to encode NA, as .
+  if(verbose)
+    message("parsing info/format fields")
+  # table(df$failure_reasons, df$judgement, useNA = "always")
+  # NA: PASS, otherwise we have a reason
+  #tmp = df$failure_reasons %>% strsplit(split = ",") %>% unlist()
+  # table(tmp) %>% names()
+  df_vcf = df %>% 
+    # we dont have a filter column, just add one
+    mutate(FILTER = "PASS") %>% 
+    dplyr::select(CHROM = chrom, 
+                  POS = start,
+                  REF = ref_allele, 
+                  ALT = alt_allele, 
+                  FILTER = FILTER, 
+                  everything()) %>% 
+    dplyr::mutate(ID = ".", 
+                  QUAL = ".",
+                  FILTER = ifelse(is.na(FILTER), "PASS", FILTER))
+  # df_vcf
+  # FORMAT
+  # INFO
+  df_vcf = df_vcf %>% mutate(
+    t_alt_max_mapq,
+    t_ref_count = as.integer(t_ref_count),
+    t_alt_count = as.integer(t_alt_count),
+    n_ref_count = as.integer(n_ref_count),
+    n_alt_count = as.integer(n_alt_count),
+    
+    t_dp = t_ref_count + t_alt_count,
+    n_dp = n_ref_count + n_alt_count,
+    t_lod_fstar = round(as.integer(t_lod_fstar), 2),
+    init_n_lod = round(as.integer(init_n_lod), 2),
+    normal_f = n_alt_count/n_dp) %>% 
+    
+    # no SB fields
+    mutate(
+      INFO = glue("TLOD={t_lod_fstar};NLOD={init_n_lod};TAF={tumor_f};TDP={t_dp};NAF={normal_f};NDP={n_dp}"), 
+      FORMAT = "GT:GQ:AD:AF:DP:SB",
+      tumor = glue("0/1:.:{t_ref_count},{t_alt_count}:{tumor_f}:{t_dp}"),
+      # should not matter as SB from normal is NEVER used....
+      # it seems combine variants from GATK is skipping this value if its missing!
+      normal = glue("0/0:.:{n_ref_count},{n_alt_count}:{normal_f}:{n_dp}"))
+  
+  # extract tumor normal name
+  if(missing(tumor_name))
+    tumor_name = df_vcf$tumor_name[1]
+  if(missing(normal_name))
+    normal_name = df_vcf$normal_name[1] 
+  
+  df_vcf_final = dplyr::select(df_vcf, 
+                               CHROM, POS, ID, REF, ALT, QUAL, 
+                               FILTER, INFO, FORMAT, 
+                               tumor, normal)
+  colnames(df_vcf_final) = c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL",
+                             "FILTER", "INFO", "FORMAT", 
+                             tumor_name, normal_name)
+  if(verbose)
+    message("writing out a gz file: ", outfile)
   # write header
   header = .mutect1_header()
   # gz1 <- gzfile(outfile, "w")
