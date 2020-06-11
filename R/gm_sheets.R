@@ -109,11 +109,11 @@ gm_split_propel_paired_fls <- function(x, suffix2 = ""){
 
 
 # 'IPCT-S2001-MOON0051-Cap1747-4-HTID004_190103-A00422-0027-AHGMW2DMXX-2-CGCTCCTTCCTT--Cap1710-8-HTID325_190103-A00422-0027-AHGMW2DMXX-1-TCTGGCTTGAAA.011120191547195658.annotated.tsv'
-gm_trk_mutect.ann <- function(mutect_path){
+gm_trk_mutect.ann <- function(mutect_path, recursive = F){
   
   suffix = ".[0-9]?.annotated.tsv"
   suffix2 = "\\.[0-9]*\\.annotated.tsv"
-  mutfls = list.files(mutect_path, "", full.names = T) %>% 
+  mutfls = list.files(mutect_path, "", full.names = T, recursive = recursive) %>% 
     grep(suffix, .,  value=TRUE)
   mutfls 
   
@@ -243,6 +243,9 @@ gm_read_tnbc_samplesheet <- function(fl = "~/projects/samplesheets/tnbc/seq_trac
   bam2 = glue("{runpath2}/{runid}/bams/{propel_single_id}.bwa_recalibed.bam")
   bam3 = glue("{runpath3}/{runid}/bams/{propel_single_id}.bwa_recalibed.bam")
   
+  # for rnaseq
+  bam4 = glue("{runpath1}/bam/{propel_single_id}.star_marked.bam")
+  
   if(verbose)
     message(bam1, bam2, bam3)
   
@@ -252,6 +255,8 @@ gm_read_tnbc_samplesheet <- function(fl = "~/projects/samplesheets/tnbc/seq_trac
     bam = bam2
   }else if(file.exists(bam3)){
     bam = bam3
+  }else if(file.exists(bam4)){
+    bam = bam4
   }else{
     bam = ""
   }

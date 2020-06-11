@@ -29,4 +29,4 @@ Description: Provides a host of modules and pipelines supporting a host of
     genomics data ranging from whole genome/exome sequencing, RNA-Seq and chipseq
     etc.
 License: GPL
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.0
