@@ -192,11 +192,6 @@ to_maf <- function (x, ...) {
 }
 
 # the most basic of df
-to_maf.data.frame <- function(){
-  
-}
-
-# the most basic of df
 to_maf.mutect <- function(){
   
 }
@@ -210,6 +205,195 @@ to_maf.mutect_annovar <- function(){
 to_maf.mutect2 <- function(){
   
 }
+
+# the most basic of df
+# this is dummy correct, not the default output of pcgr
+to_maf.pcgr <- function(x, maftools = FALSE) {
+  # x = df_mut
+  x %<>% mutate(
+    consequence2 = recode_variant_classification.pcgr(consequence),
+    t_alt_count = round(tdp*taf, 2),
+    t_ref_count = tdp - t_alt_count)
+  print(table(x$consequence2))
+  maf = to_maf.data.frame(x, 
+                          gene = "symbol", 
+                          entrez_gene_id = "entrez_id",
+
+                          chrom = "chrom",
+                          start_pos = "pos",
+                          end_pos = "pos",
+
+                          func = "consequence2",
+                          ref_allele = "ref",
+                          alt_allele = "alt",
+
+                          # AF
+                          t_alt_count = "t_alt_count",
+                          t_ref_count = "t_ref_count",
+
+                          sample_name = "name",
+                          ref_name = "name",
+                          sample_bam = "name",
+
+                          # mut qual
+                          mutation_score = "m2_qual",
+
+                          # AA change
+                          aa_change = "protein_change")
+
+    if(maftools)
+      maf = maftools::read.maf(maf)
+
+  return(maf)
+}
+
+# the most basic of df
+to_maf.data.frame <- function(x,
+                              gene = "gene.knowngene",
+                              entrez_gene_id = "entrez_gene_id",
+
+                              chrom = "chr",
+                              start_pos = "start",
+                              end_pos = "end",
+
+                              func = "exonicfunc.knowngene",
+                              ref_allele = "ref_allele",
+                              alt_allele = "alt_allele",
+
+                              # AF
+                              t_alt_count = "t_alt_count",
+                              t_ref_count = "t_ref_count",
+
+                              sample_name = "sample_name",
+                              ref_name = "sample_name",
+                              sample_bam = "sample_bam",
+
+                              # mut qual
+                              mutation_score = "score",
+
+                              # AA change
+                              aa_change = "aachange"
+
+                              # TCGA/clinVAR etc
+
+
+) {
+  p_load(futile.logger)
+
+  if (is.data.frame(x)) {
+    x = as.data.frame(x, stringsAsFactors = FALSE)
+  } else {
+    x = read_tsv(x, col_types = cols(.default = col_character())) %>%
+      data.frame(stringsAsFactors = FALSE)
+  }
+
+  cols_data = colnames(x)
+  cols_expected = c(
+    gene, entrez_gene_id,
+    chrom, start_pos, end_pos,
+    func, ref_allele, alt_allele,
+    t_alt_count, t_ref_count,
+    sample_bam, ref_name, sample_name,
+    mutation_score, aa_change
+  )
+  cols_missing = cols_expected[!cols_expected %in% cols_data]
+  if (length(cols_missing) > 0) {
+    str_cols_missing = paste0(cols_missing, collapse = "\n")
+    str_cols_data <- paste0(cols_data, collapse = "\n")
+    flog.warn(glue("These columns are missing: \n",
+      "{str_cols_missing}\n\n",
+      "Available options are:\n",
+      "{str_cols_data}"))
+    stop("fix missing columns")
+  }
+  x[, t_alt_count] = as.integer(x[, t_alt_count])
+  x[, t_ref_count] = as.integer(x[, t_ref_count])
+
+
+  flog.info("> variant type")
+  x$.variant_type = get_variant_type(x[, ref_allele], x[, alt_allele])
+
+  flog.info("> seq alleles tumor allele1")
+  Tumor_Seq_Allele1 = apply(x, 1, getTumorRef,
+    what = 1,
+    trCount = t_ref_count,
+    rAllele = ref_allele,
+    aAllele = alt_allele,
+    variant_type = ".variant_type"
+  )
+  flog.info("> seq alleles tumor allele2")
+  Tumor_Seq_Allele2 = apply(x, 1, getTumorRef,
+    what = 2,
+    trCount = t_ref_count,
+    rAllele = ref_allele,
+    aAllele = alt_allele,
+    variant_type = ".variant_type"
+  )
+  flog.info("> seq alleles ref allele")
+  Reference_Allele = get_reference_allele(x[, ref_allele], x$.variant_type)
+
+
+  flog.info("creating df")
+  maf <- data.frame(
+    Hugo_Symbol = x[, gene],
+    Entrez_Gene_Id = x[, entrez_gene_id],
+    Center = "IACS-MDACC",
+    NCBI_Build = "hg19",
+
+    # position
+    Chromosome = x[, chrom],
+    Start_position = x[, start_pos],
+    End_position = x[, end_pos],
+    Strand = "+",
+
+    # class
+    Variant_Classification = x[, func],
+    Variant_Type = x$.variant_type,
+
+    Reference_Allele = Reference_Allele,
+    Tumor_Seq_Allele1 = Tumor_Seq_Allele1,
+    Tumor_Seq_Allele2 = Tumor_Seq_Allele2,
+    Match_Norm_Seq_Allele1 = "",
+    Match_Norm_Seq_Allele2 = "",
+    Tumor_Validation_Allele1 = "",
+    Tumor_Validation_Allele2 = "",
+
+
+    # tumor allele counts
+    t_alt_count = x[, t_alt_count],
+    t_ref_count = x[, t_ref_count],
+    # AF:
+    t_vaf = x[, t_alt_count] / (x[, t_alt_count] + x[, t_ref_count]),
+
+    # normal allele counts
+
+    dbSNP_RS = x[, grep("dbsnp129", colnames(x))],
+    dbSNP_Val_Status = "bySubmitter",
+    Tumor_Sample_Barcode = x[, sample_name],
+    Matched_Norm_Sample_Barcode = x[, ref_name],
+
+    Verification_Status = "",
+    Validation_Status = "",
+    Mutation_Status = "Somatic",
+    Sequencing_Phase = "Phase_I",
+    Sequence_Source = "Capture",
+    Validation_Method = "",
+    Score = x[, mutation_score],
+    BAM_File = x[, sample_bam],
+    Sequencer = "Illumina HiSeq",
+    effect = apply(x, 1, getEffect, func = func),
+
+    Protein_Change = x[, aa_change],
+
+
+    stringsAsFactors = FALSE
+  )
+
+
+  # categ = apply(x, 1, getCateg, context=context, aAllele=alt_allele, rAllele=ref_allele))
+  return(maf)
+}
+mutect_ann_to_maf = tsv2maf = to_maf.data.frame
 
 
 
@@ -270,31 +454,12 @@ to_maf.mutect2 <- function(){
 }
 
 
-getEffect <- function (mut,
-                       func = "func",
-                       silent = c("", NA, "NA", NULL, 
-                                  "unknown", "synonymous SNV", 
-                                  "splicing synonymous SNV"),
-                       nonsilent = c("nonsynonymous SNV", 
-                                     "stopgain", "stoploss"),
-                       noncoding = "."){
-  
-  if(mut[func] %in% silent){
-    return('silent')
-    
-  }else if(mut[func] %in% nonsilent){
-    return('nonsilent')
-    
-  }else if(mut[func] %in% noncoding){
-    return('noncoding')
-  }else{
-    return('null')
-  }
-}
 
 
-getTumorRef <- function(mut, what = c(1, 2), trCount = "t_ref_count", 
-                        rAllele = "ref_allele", aAllele = "alt_allele", 
+getTumorRef <- function(mut, what = c(1, 2), 
+                        trCount = "t_ref_count", 
+                        rAllele = "ref_allele", 
+                        aAllele = "alt_allele", 
                         variant_type){
   variant_type = mut[variant_type]
   if(what == 1){
@@ -302,19 +467,25 @@ getTumorRef <- function(mut, what = c(1, 2), trCount = "t_ref_count",
       return("-")
     if(variant_type %in%  c("DNP", "TNP", "ONP"))
       return(aAllele)
-    
+
     # handle SNPs
+    # if tumor ref counts > 0, get ref_allele
     if(as.numeric(mut[trCount]) > 0){
-      return(mut[grep(rAllele, names(mut))])
+      # return(mut[grep(rAllele, names(mut))])
+      return(mut[rAllele])
+    # if tumor ref counts == 0, there is no tumor reference, only ALT allele
     }else{
-      return(mut[grep(aAllele, names(mut))])
+      return(mut[aAllele])
+      # return(mut[grep(aAllele, names(mut))])
     }
+
   }else{
+    # case of allele2, always return alt allele
     # fill missing allele, in case of complex rearrangements
     if(variant_type %in% c("DEL", "INS", "DNP", "TNP", "ONP"))
       return("")
     else
-      return(mut[grep(aAllele, names(mut))])
+      return(mut[aAllele])
   }
 }
 
@@ -339,137 +510,7 @@ get_reference_allele <- function(ref, variant_type){
     TRUE ~ ref)
 }
 
-tsv2maf <- function(x,
-                    gene = "gene.knowngene",
-                    entrez_gene_id = "entrez_gene_id",
-                    
-                    chrom = "chr",
-                    start_pos = "start",
-                    end_pos = "end",
-                    
-                    func = "exonicfunc.knowngene",
-                    ref_allele = "ref_allele",
-                    alt_allele = "alt_allele",
-                    
-                    # AF
-                    t_alt_count = "t_alt_count",
-                    t_ref_count = "t_ref_count",
-                    
-                    sample_name = "sample_name",
-                    ref_name = "sample_name",
-                    sample_bam = "sample_bam",
-                    
-                    # mut qual
-                    mutation_score = "score",
-                    
-                    # AA change
-                    aa_change = "aachange"
-                    
-                    # TCGA/clinVAR etc
-                    
-                    
-){
-  
-  if(is.data.frame(x))
-    x = as.data.frame(x, stringsAsFactors = FALSE)
-  else
-    x = read_tsv(x, col_types = cols(.default = col_character())) %>% 
-      data.frame(stringsAsFactors = FALSE)
-  
-  cols_data = colnames(x)
-  cols_expected = c(gene, entrez_gene_id, 
-                    chrom, start_pos, end_pos, 
-                    func, ref_allele, alt_allele, 
-                    t_alt_count, t_ref_count, 
-                    sample_bam, ref_name, sample_name, 
-                    mutation_score, aa_change)
-  cols_missing = cols_expected[!cols_expected %in% cols_data]
-  if(length(cols_missing) > 0){
-    message("> these columns are missing: \n", 
-            paste0(cols_missing, collapse = "\n"), 
-            "\navailable options are: ", 
-            paste0(cols_data, collapse = "\n"))
-    stop("fix missing columns")
-  }
-  x[, t_alt_count] = as.integer(x[, t_alt_count])
-  x[, t_ref_count] = as.integer(x[, t_ref_count])
-  
-  
-  message("> variant type")
-  x$.variant_type = get_variant_type(x[, "ref_allele"], x[, "alt_allele"])
-  
-  message("> seq alleles")
-  Tumor_Seq_Allele1 = apply(x, 1, getTumorRef,
-                            what = 1,
-                            trCount = t_ref_count,
-                            rAllele = ref_allele,
-                            aAllele = alt_allele, 
-                            variant_type = ".variant_type")
-  Tumor_Seq_Allele2 = apply(x, 1,  getTumorRef, what = 2,
-                            trCount = t_ref_count,
-                            rAllele = ref_allele,
-                            aAllele = alt_allele, 
-                            variant_type = ".variant_type")
-  Reference_Allele = get_reference_allele(x[, ref_allele], x$.variant_type)
-  
-  
-  maf <- data.frame(Hugo_Symbol = x[, gene],
-                    #Entrez_Gene_Id = x[, entrez_gene_id],
-                    Center = "IACS-MDACC",
-                    NCBI_Build = "hg19",
-                    
-                    # position
-                    Chromosome = x[, chrom],
-                    Start_position = x[, start_pos],
-                    End_position = x[, end_pos],
-                    Strand = "+",
-                    
-                    # class
-                    Variant_Classification = x[, func],
-                    Variant_Type = x$.variant_type,
-                    
-                    Reference_Allele = Reference_Allele,
-                    Tumor_Seq_Allele1 = Tumor_Seq_Allele1,
-                    Tumor_Seq_Allele2 = Tumor_Seq_Allele2,
-                    Match_Norm_Seq_Allele1 = "",
-                    Match_Norm_Seq_Allele2 = "",
-                    Tumor_Validation_Allele1 =  "",
-                    Tumor_Validation_Allele2 = "",
-                    
-                    
-                    # tumor allele counts
-                    t_alt_count = x[, t_alt_count],
-                    t_ref_count = x[, t_ref_count],
-                    # AF:
-                    t_vaf = x[, t_alt_count]/(x[, t_alt_count] + x[, t_ref_count]),
-                    
-                    # normal allele counts
-                    
-                    dbSNP_RS = x[, grep("dbsnp129", colnames(x))],
-                    dbSNP_Val_Status = "bySubmitter",
-                    Tumor_Sample_Barcode = x[, sample_name],
-                    Matched_Norm_Sample_Barcode = x[, ref_name],
-                    
-                    Verification_Status = "",
-                    Validation_Status = "",
-                    Mutation_Status = "Somatic",
-                    Sequencing_Phase = "Phase_I",
-                    Sequence_Source = "Capture",
-                    Validation_Method = "",
-                    Score = x[, mutation_score],
-                    BAM_File = x[, sample_bam],
-                    Sequencer = "Illumina HiSeq",
-                    effect = apply(x, 1, getEffect, func= func),
-                    
-                    Protein_Change = x[, aa_change],
-                    
-                    
-                    stringsAsFactors = FALSE)
-  #categ = apply(x, 1, getCateg, context=context, aAllele=alt_allele, rAllele=ref_allele))
-  return(maf)
-  
-}
-mutect_ann_to_maf = tsv2maf
+
 
 
 
@@ -504,37 +545,45 @@ mutect_ann_to_maf = tsv2maf
 
 recode_variant_classification <- function(x){
   
-  x
   case_when(
-    x %in% c(" ", ".", "unknown") ~ "unknown",
+    x %in% c(" ", ".", "unknown", "intergenic_variant", "non_coding_transcript_exon_variant") ~ "unknown",
     
-    x %in% c("synonymous SNV", "synonymous", "Silent") ~ "Silent",
+    x %in% c("synonymous SNV", "synonymous", "Silent", "synonymous_variant", "stop_retained_variant") ~ "Silent",
     
-    x %in% c("3'UTR") ~ "3'UTR",
+    x %in% c("3'UTR", "3_prime_UTR_variant", "downstream_gene_variant") ~ "3'UTR",
     
-    x %in% c("5'Flank") ~ "5'Flank",
+    x %in% c("5'Flank", "upstream_gene_variant", "5_prime_UTR_variant") ~ "5'Flank",
     
-    x %in% "Intron" ~ "Intron",
+    x %in% c("Intron", "intron_variant") ~ "Intron",
     
     # RED
-    x %in% c("nonsynonymous SNV", "nonsynonymous", "Missense_Mutation", "NON_SYNONYMOUS_CODING") ~ "Missense_Mutation",
+    x %in% c("nonsynonymous SNV", "nonsynonymous", "Missense_Mutation", "NON_SYNONYMOUS_CODING", "missense_variant") ~ "Missense_Mutation",
     
     x %in% c("frameshift deletion", "Frame_Shift_Del") ~ "Frame_Shift_Del",
     
-    x %in% c("frameshift insertion", "synonymous", "Silent") ~ "Silent",
-    
     x %in% c("nonframeshift deletion", "In_Frame_Del") ~ "In_Frame_Del",
-    x %in% c("In_Frame_Ins") ~ "In_Frame_Ins",
     
-    x %in% c("stoploss SNV", "stoploss", "Nonstop_Mutation") ~ "Nonstop_Mutation",
-    x %in% c("stopgain SNV", "stopgain", "STOP_GAINED") ~ "Nonsense_Mutation",
-    x %in% c("In_Frame_Ins") ~ "In_Frame_Ins",
-    
-    x %in% c("splicing", "splicing*", "Splice_Site", "Splice_Region") ~ "Splice_Region")
+    x %in% c("stoploss SNV", "stoploss", "Nonstop_Mutation", "stop_lost") ~ "Nonstop_Mutation",
+    x %in% c("stopgain SNV", "stopgain", "STOP_GAINED", "stop_gained") ~ "Nonsense_Mutation",
+
+    x %in% c("In_Frame_Ins", "frameshift insertion") ~ "In_Frame_Ins",
+
+    x %in% c("splicing", "splicing*", "Splice_Site", "Splice_Region", "splice_region_variant", "splice_acceptor_variant", "splice_donor_variant") ~ "Splice_Region",
   
-  
+    x %in% c("start_lost") ~ "Translation_Start_Site")
 }
 
+recode_variant_classification.pcgr <- function(consequence) {
+  consequence2 <- case_when(
+    consequence == "splice_region_variant&intron_variant" ~ "splice_region_variant",
+    consequence == "stop_gained&splice_region_variant" ~ "stop_gained",
+    consequence == "missense_variant&splice_region_variant" ~ "splice_region_variant",
+    consequence == "splice_region_variant&synonymous_variant" ~ "splice_region_variant",
+    TRUE ~ as.character(consequence)
+  )
+  consequence2 <- recode_variant_classification(consequence2)
+  consequence2
+}
 
 
 maf2vcf <- function(maf_fl, 
@@ -727,3 +776,27 @@ mutect_ann_to_maf = tsv2maf
 # then use maf2vcf to convert into vcf
 # useful for ALL CGL output
 
+# extra --------
+# use recode_variant_classification instead
+getEffect <- function(mut,
+                      func = "func",
+                      silent = c(
+                        "", NA, "NA", NULL,
+                        "unknown", "synonymous SNV",
+                        "splicing synonymous SNV"
+                      ),
+                      nonsilent = c(
+                        "nonsynonymous SNV",
+                        "stopgain", "stoploss"
+                      ),
+                      noncoding = ".") {
+  if (mut[func] %in% silent) {
+    return("silent")
+  } else if (mut[func] %in% nonsilent) {
+    return("nonsilent")
+  } else if (mut[func] %in% noncoding) {
+    return("noncoding")
+  } else {
+    return("null")
+  }
+}

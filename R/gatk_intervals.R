@@ -9,3 +9,4 @@ get_intervals <- function(ref_fasta = opts_flow$get("ref_fasta_path"),
   intervals_opts = paste0(" -L ", chrs_info) # interval files
   list(intervals_opts = intervals_opts)
 }
+

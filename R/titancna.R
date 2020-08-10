@@ -36,8 +36,12 @@
 
 # https://github.com/broadinstitute/gatk/blob/master/scripts/unsupported/combine_tracks_postprocessing_cnv/combine_tracks.wdl
 # https://github.com/bcbio/bcbio-nextgen/blob/520fad7da7fa46635e6514b8bb6b12b988cc20ac/bcbio/structural/titancna.py#L162
+
+# https://github.com/gavinha/TitanCNA/issues/38
+# floris/chapman posts here
 # Convert GATK hets from ModelSegments to Titan input:
 # cat SAMPLE.hets.tsv | awk '/^[^@]/ { print $1,$2,$5,$3,$6,$4 }' | tr ' ' '\t' > tmp.hets.tsv 
+
 
 #' .titan_cn_file
 #' 
@@ -106,8 +110,18 @@ titancna_somatic_matched <- function(trk,
                                      funr_exe = opts_flow$get("R_funr_exe"),
                                      num_cores = 4,
                                      rscript_exe = opts_flow$envir$R.sing_rscript,
-                                     titandir = pipe_str$ttn$dir
+                                     titandir = pipe_str$titancna$dir,
+                                     titancna_cluster_min = opts_flow$envir$titancna_cluster_min,
+                                     titancna_cluster_max = opts_flow$envir$titancna_cluster_max,
+                                     titancna_opts = opts_flow$envir$titancna_opts
 ){
+  
+  # print function name
+  # message(match.call()[1], " ", appendLF = F)
+  check_args()
+  
+  flog.debug(paste0("Generating a titancna_somatic_matched flowmat for sample: ", samplename))
+
   
   # check generic columns
   trk = metadata_for_dnaseq_tools(trk)
@@ -155,19 +169,25 @@ titancna_somatic_matched <- function(trk,
   
   # --chrs 'c(1:22, \"X\")'
   ploidies = c(2:4)
-  clusters = c(1:10)
+  clusters = c(titancna_cluster_min:titancna_cluster_max)
   
   # tic("> starting titan cna")
   # cpu_titan=24 # assumming we have 24 cores
   
   i = 1
+  gender = trk_tum$gender[1]
+  if (gender %in% c("male", "Male","MALE","m", "M")){
+    gender = "male"
+  }else{
+    gender = "female"
+  }
+    
   ttn_cmds = lapply(1:nrow(trk_tum), function(i){
     
     name = trk_tum$name[i]
-    target = glue("{titandir}/{name}_optimalClusters.txt")
+    # target = glue("{titandir}/{name}_optimalClusters.txt")
     titan_hets_file = trk_tum$titan_hets_file[i]
     titan_cnr_file = trk_tum$titan_cnr_file[i]
-    gender = trk_tum$gender[i]
     tmp = mclapply(ploidies, function(ploidy){
       mclapply(clusters, function(cluster){
         # cluster = 2; ploidy = 2
@@ -178,7 +198,7 @@ titancna_somatic_matched <- function(trk,
                             "--numClusters {cluster} --numCores {num_cores} --normal_0 0.5 --ploidy_0 {ploidy} ",
                             "--estimateNormal map --estimatePloidy TRUE --estimateClonality TRUE --outDir {outdir} ", 
                             # Hyperparameter on Gaussian variance; for WES, use 2500; for WGS, use 10000; float (Default: 10000
-                            "--gender {gender} --alphaK 2500 --alphaKHigh 2500 ", 
+                            "--gender {gender} {titancna_opts} ", 
                             "--centromere {centromere_gap_fl} >> {outdir}_{name}.out")
         
         if(run_cmds){
@@ -197,7 +217,8 @@ titancna_somatic_matched <- function(trk,
   
   
   # ttn.mrg
-  titancna_selectsolution = "$HOME/Dropbox/public/github_titancna/scripts/R_scripts/selectSolution.R"
+  # this one will automatically select a solution PER SAMPLE
+  titancna_selectsolution = "$HOME/Dropbox/public/github_titancna/scripts/R_scripts/selectSolution_ss.R"
   cmd_titancna_select_solutions = glue("{rscript_exe} {titancna_selectsolution} ",
                                        "--ploidyRun2={titandir}/run_ploidy2 --ploidyRun3={titandir}/run_ploidy3 ",
                                        "--ploidyRun4={titandir}/run_ploidy4 --threshold=0.05 ",
@@ -219,8 +240,12 @@ titancna_somatic_matched <- function(trk,
 
 
 titancna_merge_opt_cluster <- function(df_trk){
+  # df_trk =  df_trk
   i=1
+  # df_trk$ttn_optimal_fl
+  expect_columns(df_trk, "ttn_optimal_fl")
   tmp = lapply(1:nrow(df_trk), function(i){
+    # being explicit is better for bind rows
     opt_clus = df_trk$ttn_optimal_fl[i] %>% 
       read_tsv(col_types = cols(
         Phi = col_double(),
@@ -239,64 +264,11 @@ titancna_merge_opt_cluster <- function(df_trk){
   }) %>% bind_rows()
   # tmp
   df_trk = left_join(df_trk, tmp, by = c("name" = "barcode"))
-}
+  # write_tsv(df_trk, "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/titancna_v2/df_ttn_opt.tsv")
 
-titan_cna_states <- function(){
-  # based on discussions here
-  # https://github.com/gavinha/TitanCNA/issues/8
-  # read.delim(pipe("pbpaste")) %>% dput()
-  
-  df_titan_states = structure(list(titan_state = -1:24, 
-                                   titan_genotype = c("NULL", 
-                                                      "NULL", "A", "AA", "AB", "AAA", "AAB", "AAAA", "AAAB", "AABB", 
-                                                      "AAAAA", "AAAAB", "AAABB", "AAAAAA", "AAAAAB", "AAAABB", "AAABBB", 
-                                                      "AAAAAAA", "AAAAAAB", "AAAAABB", "AAAABBB", "AAAAAAAA", "AAAAAAAB", 
-                                                      "AAAAAABB", "AAAAABBB", "AAAABBBB"), 
-                                   titan_total_copy_number = c("NULL", 
-                                                               "0", "1", "2", "2", "3", "3", "4", "4", "4", "5", "5", "5", "6", 
-                                                               "6", "6", "6", "7", "7", "7", "7", "8", "8", "8", "8", "8"), 
-                                   titan_call = c("OUT", "HOMD", "DLOH", "NLOH", "HET", "ALOH", 
-                                                  "GAIN", "ALOH", "ASCNA", "BCNA", "ALOH", "ASCNA", "UBCNA", 
-                                                  "ALOH", "ASCNA", "UBCNA", "BCNA", "ALOH", "ASCNA", "UBCNA", 
-                                                  "UBCNA", "ALOH", "ASCNA", "UBCNA", "UBCNA", "BCNA"), 
-                                   titan_corrected_call = c("OUT", 
-                                                            "HOMD", "DLOH", "NLOH", "HET", "ALOH", "GAIN", "ALOH", "ASCNA", 
-                                                            "BCNA", "ALOH", "ASCNA", "UBCNA", "ALOH", "ASCNA", "UBCNA", 
-                                                            "BCNA", "ALOH", "ASCNA", "UBCNA", "UBCNA", "HLAMP", "HLAMP", 
-                                                            "HLAMP", "HLAMP", "HLAMP"),
-                                   titan_corrected_call2 = c("OUT", 
-                                                             "HOMD", "HETD", "NLOH", "NEUT", "ALOH", "GAIN", "ALOH", "ASCNA", 
-                                                             "BCNA", "ALOH", "ASCNA", "UBCNA", "ALOH", "ASCNA", "UBCNA", 
-                                                             "BCNA", "ALOH", "AMP", "AMP", "AMP", "HLAMP", "HLAMP", 
-                                                             "HLAMP", "HLAMP", "HLAMP"),
-                                   titan_call_description = c("Outlier state", 
-                                                              "Homozygous deletion", "Hemizygous deletion LOH", "Copy neutral LOH", 
-                                                              "Diploid heterozygous", "Amplified LOH", "Gain/duplication of 1 allele", 
-                                                              "Amplified LOH", "Allele-specific copy number amplification", 
-                                                              "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification", 
-                                                              "Unbalanced copy number amplification", "Amplified LOH", 
-                                                              "Allele-specific copy number amplification", "Unbalanced copy number amplification", 
-                                                              "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification", 
-                                                              "Unbalanced copy number amplification", "Unbalanced copy number amplification", 
-                                                              "Amplified LOH", "Allele-specific copy number amplification", 
-                                                              "Unbalanced copy number amplification", "Unbalanced copy number amplification", 
-                                                              "Balanced copy number amplification"), 
-                                   titan_corrected_call_description = c("Outlier state", 
-                                                                        "Homozygous deletion", "Hemizygous deletion LOH", "Copy neutral LOH", 
-                                                                        "Diploid heterozygous", "Amplified LOH", "Gain/duplication of 1 allele", 
-                                                                        "Amplified LOH", "Allele-specific copy number amplification", 
-                                                                        "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification", 
-                                                                        "Unbalanced copy number amplification", "Amplified LOH", 
-                                                                        "Allele-specific copy number amplification", "Unbalanced copy number amplification", 
-                                                                        "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification", 
-                                                                        "Unbalanced copy number amplification", "Unbalanced copy number amplification", 
-                                                                        "High-level amplification", "High-level amplification", "High-level amplification", 
-                                                                        "High-level amplification", "High-level amplification")), class = "data.frame", row.names = c(NA, 
-                                                                                                                                                                      -26L))
-  df_titan_states %>% dplyr::mutate(titan_total_copy_number = as.integer(titan_total_copy_number))
-}
+  }
 
-# ** read final titiancna-------
+
 if(FALSE){
   
   wexpath = "/rsrch3/scratch/iacs/sseth/flows/SS/sarco/mda/wex"
@@ -334,8 +306,11 @@ if(FALSE){
   
 }
 
-
-to_seg.titan <- function(segfl){
+# read titiancna -------
+to_gr_seg.titancna <- function(segfl,
+                               gencode_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b37/annotations/gencode/v19/gencode.v19.annotation_gene_hgnc.bed",
+                               lst_gen = NULL,
+                               verbose = FALSE){
   
   seg = data.table::fread(segfl, data.table = F) %>% as_tibble() %>% 
     clean_names()
@@ -351,20 +326,175 @@ to_seg.titan <- function(segfl){
   #          chr = gsub("24", "Y", chr))
   # gr_seg <- makeGRangesFromDataFrame(seg, keep.extra.columns = T)
   
+  # convert to GR
   lst = seg %>% to_gr_seg.seg(col_sample = "sample", 
                               col_chr = "chromosome", 
                               col_start = "start_position_bp", col_end = "end_position_bp", 
-                              col_num_mark = "length_snp", col_seg_mean = "corrected_copy_number")
-  message("annotate")
+                              col_num_mark = "length_snp", col_seg_mean = "median_log_r")
+  
+  # read igvseg
+  
+  # read subclonal seg for igv
+  segfl_sub = gsub(".segs.txt$", ".titan.txt", segfl)
+  df_sub_seg = data.table::fread(segfl_sub, data.table = F)
+  head(df_sub_seg)
+  
+  # convert to GR
+  if(verbose)
+    message("annotate")
+  # use the supplied file
+  if(is.null(lst_gen))
+    lst_gen <- to_grseg.gencode(gencode_fl)
+
   source('~/Dropbox/projects/packs_dnaseq/R/to_mae.seg.R')
-  length(lst$gr_seg)
-  df_ann = annotate.gr_seg(lst$gr_seg, gencode_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b37/annotations/gencode/v19/gencode.v19.annotation_gene_hgnc.bed") %>% 
-    dplyr::mutate(corrected_copy_number = seg_mean)
+  df_ann = annotate.gr_seg(lst$gr_seg, lst_gen = lst_gen)
   dim(df_ann)
-  df_ann = df_ann %>% group_by(gene_name) %>% add_count()
+  # df_ann = df_ann %>% group_by(gene_name) %>% add_count()
   # df_ann %>% filter(n>1) %>% View()
   
   list(df_ann = df_ann, df_igv_seg = lst$df_igv_seg, gr_seg = lst$gr_seg)
   
 }
 
+# ** to_matrix -------
+resolve_state <- function(x) {
+  if (length(x) == 1) {
+    return(x)
+  }
+  # mean(x, na.rm = T)
+  # if(is.na(x)) return(x)
+  x[which(abs(x) == max(abs(x)))][1]
+}
+# x=c("NEUT", "HETD")
+resolve_corrected_call <- function(x) {
+  if (length(x) == 1) {
+    return(x)
+  }
+  indxs <- which(df_titan_ref$titan_corrected_call2 %in% x)
+  df_titan_ref$titan_corrected_call2[max(indxs)]
+}
+# x=c("DLOH", "DHET")
+resolve_call <- function(x) {
+  if (length(x) == 1) {
+    return(x)
+  }
+  indxs <- which(df_titan_ref$titan_call %in% x)
+  df_titan_ref$titan_call[max(indxs)]
+}
+
+titan_cna_states <- function() {
+  # based on discussions here
+  # https://github.com/gavinha/TitanCNA/issues/8
+  # read.delim(pipe("pbpaste")) %>% dput()
+
+  df_titan_states <- structure(list(
+    titan_state = -1:24,
+    titan_genotype = c(
+      "NULL",
+      "NULL", "A", "AA", "AB", "AAA", "AAB", "AAAA", "AAAB", "AABB",
+      "AAAAA", "AAAAB", "AAABB", "AAAAAA", "AAAAAB", "AAAABB", "AAABBB",
+      "AAAAAAA", "AAAAAAB", "AAAAABB", "AAAABBB", "AAAAAAAA", "AAAAAAAB",
+      "AAAAAABB", "AAAAABBB", "AAAABBBB"
+    ),
+    titan_total_copy_number = c(
+      "NULL",
+      "0", "1", "2", "2", "3", "3", "4", "4", "4", "5", "5", "5", "6",
+      "6", "6", "6", "7", "7", "7", "7", "8", "8", "8", "8", "8"
+    ),
+    titan_call = c(
+      "OUT", "HOMD", "DLOH", "NLOH", "HET", "ALOH",
+      "GAIN", "ALOH", "ASCNA", "BCNA", "ALOH", "ASCNA", "UBCNA",
+      "ALOH", "ASCNA", "UBCNA", "BCNA", "ALOH", "ASCNA", "UBCNA",
+      "UBCNA", "ALOH", "ASCNA", "UBCNA", "UBCNA", "BCNA"
+    ),
+    titan_corrected_call = c(
+      "OUT",
+      "HOMD", "DLOH", "NLOH", "HET", "ALOH", "GAIN", "ALOH", "ASCNA",
+      "BCNA", "ALOH", "ASCNA", "UBCNA", "ALOH", "ASCNA", "UBCNA",
+      "BCNA", "ALOH", "ASCNA", "UBCNA", "UBCNA", "HLAMP", "HLAMP",
+      "HLAMP", "HLAMP", "HLAMP"
+    ),
+    titan_corrected_call2 = c(
+      "OUT",
+      "HOMD", "HETD", "NLOH", "NEUT", "ALOH", "GAIN", "ALOH", "ASCNA",
+      "BCNA", "ALOH", "ASCNA", "UBCNA", "ALOH", "ASCNA", "UBCNA",
+      "BCNA", "ALOH", "AMP", "AMP", "AMP", "HLAMP", "HLAMP",
+      "HLAMP", "HLAMP", "HLAMP"
+    ),
+    titan_call_description = c(
+      "Outlier state",
+      "Homozygous deletion", "Hemizygous deletion LOH", "Copy neutral LOH",
+      "Diploid heterozygous", "Amplified LOH", "Gain/duplication of 1 allele",
+      "Amplified LOH", "Allele-specific copy number amplification",
+      "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification",
+      "Unbalanced copy number amplification", "Amplified LOH",
+      "Allele-specific copy number amplification", "Unbalanced copy number amplification",
+      "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification",
+      "Unbalanced copy number amplification", "Unbalanced copy number amplification",
+      "Amplified LOH", "Allele-specific copy number amplification",
+      "Unbalanced copy number amplification", "Unbalanced copy number amplification",
+      "Balanced copy number amplification"
+    ),
+    titan_corrected_call_description = c(
+      "Outlier state",
+      "Homozygous deletion", "Hemizygous deletion LOH", "Copy neutral LOH",
+      "Diploid heterozygous", "Amplified LOH", "Gain/duplication of 1 allele",
+      "Amplified LOH", "Allele-specific copy number amplification",
+      "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification",
+      "Unbalanced copy number amplification", "Amplified LOH",
+      "Allele-specific copy number amplification", "Unbalanced copy number amplification",
+      "Balanced copy number amplification", "Amplified LOH", "Allele-specific copy number amplification",
+      "Unbalanced copy number amplification", "Unbalanced copy number amplification",
+      "High-level amplification", "High-level amplification", "High-level amplification",
+      "High-level amplification", "High-level amplification"
+    )
+  ), class = "data.frame", row.names = c(
+    NA,
+    -26L
+  ))
+  df_titan_states %>% dplyr::mutate(titan_total_copy_number = as.integer(titan_total_copy_number))
+}
+
+
+# plots -----
+
+# compare purity, ploidy, and number of clusters
+
+plot_purity_ploidy <- function(df_trk_ttn){
+  # this is for 174 optcluster files
+  p_load(ggplot2, cowplot, ggsci)
+  p1 = df_trk_ttn %>% 
+    ggplot(aes(purity, ploidy, color = as.factor(num_clust))) +
+    geom_point() + theme_cowplot() +
+    scale_color_npg(name = "# clusters")
+  p2 = ggstatsplot::ggscatterstats(df_trk_ttn, 
+    purity, ploidy, 
+    type = "none", # type of test that needs to be run
+    ggtheme = theme_cowplot(), # choosing a different theme
+
+    formula = NA,
+    smooth.line.args = list(size = 0, color = "black"),
+    results.subtitle = FALSE,
+    # points to label: 
+    label.var = "individual", # variable for labeling data points
+    label.expression = "ploidy > 5 | purity < 0.35", # expression that decides which points to label
+
+    xfill = "pink", # color fill for x-axis marginal distribution
+    yfill = "#009E73", # color fill for y-axis marginal distribution
+    centrality.parameter = "median", # central tendency lines to be displayed
+    centrality.label.args = list(size = 3, yintercept = 5.5),
+    marginal.type = "density", # type of marginal distribution to be displayed
+
+    messages = FALSE # turn off messages and notes
+  )
+  p = plot_grid(p1, p2, nrow=1)
+  save_plot(glue("{odir}/p_purity_vs_ploidy.pdf"), p, base_width = 12, base_height = 6)
+
+  # we have a few which have more than 4 ploidy, we did not even run
+  # till that!
+  filter(df_trk_ttn, ploidy > 4) %>% 
+    select(phi, id, num_clust, purity, ploidy, loglik, sdbw, cell_prev) %>% 
+    kable()
+
+
+}

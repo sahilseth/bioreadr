@@ -83,7 +83,7 @@ pvacseq <- function(
   samplename,
   seq_sample_id_t,
   
-  odir = "pvacseq_full",
+  odir = "pvacseq",
   
   # pvacseq_mhc_tools = "MHCflurry MHCnuggetsI MHCnuggetsII NNalign NetMHC PickPocket SMM SMMPMBEC SMMalign",
   pvacseq_mhc_tools = opts_flow$get("pvacseq.mhc_tools"),
@@ -102,6 +102,7 @@ pvacseq <- function(
   # pvacseq run ${ann_vcf} "1004-t" $(cat WEX-1004-N_nochr_hla_umap_hla_pvac.txt) ${mhc_tools} pvacseq -e 8,9,10 --iedb-install-directory $iedb_dir
   # skipping iedb for now, causes major issues
   # https://unix.stackexchange.com/questions/37135/concatenate-two-files-without-adding-a-newline
+  # keep them unfiltered
   cmd_pvacseq = glue("{pvacseq_setup}; ",
                      "rm -rf {odir}; ",
                      "pvacseq run {input_vcf} {seq_sample_id_t} $(paste -d',' {hla_fls}) {pvacseq_mhc_tools} {odir} {pvacseq_opts} --iedb-install-directory {iedb_dir}")
@@ -246,6 +247,67 @@ pvac_prep_vcf <- function(input_vcf = input_vcf,
 #'   The above file after applying all filters, with cleavage site and stability predictions added.
 #'   <sample_name>.filtered.condensed.ranked.tsv
 #'   A condensed version of the filtered TSV with only the most important columns remaining, with a priority score for each neoepitope candidate added.
+
+# this one uses fread instead
+read_pvacseq2 <- function(oprefix,
+                         seq_sample_id, 
+                         path_patient_id){
+  p_load(janitor)
+
+  message(" all ", appendLF = F)
+  glue("{oprefix}.all_epitopes.tsv") %>% file.exists()
+  # protein_position: to take care of indels
+  df_all = glue("{oprefix}.all_epitopes.tsv") %>% 
+    data.table::fread(data.table = F) %>% 
+    dplyr::mutate(seq_sample_id = seq_sample_id, 
+                  path_patient_id = path_patient_id) %>% 
+    clean_names() %>% 
+    dplyr::mutate(protein_position = as.character(protein_position),
+           chromosome = as.character(chromosome),
+           reference = as.character(reference))
+  
+  message("filtered ", appendLF = F)
+  df_filt = glue("{oprefix}.filtered.tsv") %>%
+    data.table::fread(data.table = F) %>%
+      dplyr::mutate(seq_sample_id = seq_sample_id,
+                    path_patient_id = path_patient_id) %>% 
+      clean_names() %>%
+        # to take care of indels
+      dplyr::mutate(
+        protein_position = as.character(protein_position),
+        chromosome = as.character(chromosome),
+        reference = as.character(reference),
+        transcript = as.character(transcript),
+        ensembl_gene_id = as.character(ensembl_gene_id),
+        variant = as.character(variant),
+        mutation = as.character(mutation),
+        gene_name = as.character(gene_name),
+        hla_allele = as.character(hla_allele),
+        mt_epitope_seq = as.character(mt_epitope_seq),
+        wt_epitope_seq = as.character(wt_epitope_seq),
+        best_mt_score_method = as.character(best_mt_score_method),
+        variant_type = as.character(variant_type))
+
+  message("filtered ranked")
+  df_filt_rnk = glue("{oprefix}.filtered.condensed.ranked.tsv") %>%
+    data.table::fread(data.table = F) %>%
+      dplyr::mutate(
+        seq_sample_id = seq_sample_id,
+        path_patient_id = path_patient_id
+      ) %>% clean_names() %>% 
+    # to take care of indels
+    dplyr::mutate(
+      protein_position = as.character(protein_position),
+      gene_name = as.character(gene_name),
+      hla_allele = as.character(hla_allele),
+      mt_epitope_seq = as.character(mt_epitope_seq),
+      mutation = as.character(mutation))
+  
+  
+  list(df_all = df_all, 
+       df_filt = df_filt,
+       df_filt_rnk = df_filt_rnk)
+}
 
 read_pvacseq <- function(oprefix,
                          seq_sample_id, 

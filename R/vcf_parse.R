@@ -1,5 +1,15 @@
+# generic --------
+as_n <- function(...) {
+  as.numeric(unlist(...))
+}
+as_i <- function(...) {
+  as.integer(unlist(...))
+}
+as_c <- function(...) {
+  as.character(unlist(...))
+}
 
-
+# split vals --------
 splt_vcf_format <- function(x, format, prefix, .debug = F){
   x = as.character(unlist(x))
   format = as.character(unlist(format))
@@ -47,17 +57,8 @@ splt_vcf_info <- function(x, cores = 1){
 }
 
 
-# ** funcs for specific fields -------
+# funcs for specific fields -------
 .get_value_type <- function(type){
-  as_n = function(...){
-    as.numeric(unlist(...))  
-  }
-  as_i = function(...){
-    as.integer(unlist(...))  
-  }
-  as_c = function(...){
-    as.character(unlist(...))  
-  }
   
   if(type == "Float")
     return(as_n)
@@ -80,6 +81,7 @@ read_vcf <- function(x, cores = 1){
   require(dplyr)
   require(parallel)
   
+  # check if its a bedr object
   rlogging::message("Reading file...")
   if(is.list(x)){
     if(length(x$header) > 1){
@@ -109,14 +111,13 @@ read_vcf <- function(x, cores = 1){
   # colnames(tab) = gsub("#chrom", "chrom", hd)
   # #tab = tbl_df(tab)
   
-  rlogging::message("Parsing info columns...")
+  flog.info("Parsing info columns...")
   # debug(splt_vcf_info)
   info_cols = splt_vcf_info(vcf$vcf$INFO, cores = cores)
   colnames(info_cols) = paste0("info_", colnames(info_cols))
   
   # total cols
-  rlogging::message("Parsing format columns...")
-  
+  flog.info("Parsing format columns...")
   cols = colnames(vcf$vcf)
   cols_samp = seq(grep("FORMAT", cols) + 1, ncol(vcf$vcf))
   cols_samp = cols[cols_samp]
@@ -135,16 +136,17 @@ read_vcf <- function(x, cores = 1){
     format_cols = do.call(cbind, lst_tmp)
     # head(format_cols)
   }else{
-    message("no format columns")
+    flog.info("no format columns")
   }
   # select vcf fixed
   colfixed = !colnames(vcf$vcf) %in% c("FORMAT", cols_samp, "INFO")
   
-  rlogging::message("Assembling data")
+  flog.info("Assembling data")
   tab2 = tbl_df(cbind(vcf$vcf[, ..colfixed], info_cols, format_cols))
   head(tab2)
   colnames(tab2) = tolower(colnames(tab2))
   return(list(vcf = vcf$vcf, tab = tab2, header = vcf$header))
+
 }
 
 parse_vcf = read_vcf
@@ -153,6 +155,8 @@ parse_vcf = read_vcf
   
   
 }
+
+# main funcs -------
 
 #' Parse a somatic VCF, with two samples.
 #'
@@ -319,7 +323,7 @@ read_vcf_germline <- function(x, samp = NULL){
   
   if(is.null(samp)){
     samp = vcf$header$tumor_sample
-    message("samp missing, extracting from vcf")
+    flog.info(glue("samp missing, extracting from vcf: {samp}"))
   }
   check_args()
   
@@ -328,15 +332,15 @@ read_vcf_germline <- function(x, samp = NULL){
   colnames(mat) = colnms_new
   head(mat)
   
-  rlogging::message("auto force column info type ...")
+  flog.info(">> VCF INFO column: auto force ...")
   vcf_header_info = vcf$header$INFO %>% data.frame(stringsAsFactors = F) %>% 
     mutate(colnm = paste0("info_", tolower(ID)))
   vcf_header_info_f1 = tidylog::filter(vcf_header_info, 
                                        Number %in% c(1, "A"), 
                                        Type %in% c("Integer", "Float"), 
                                        colnm %in% colnames(mat))
-  message("can auto-force following:\n", 
-          paste0("\t", vcf_header_info_f1$colnm, collapse = "\n"))
+  flog.info(paste0("can auto-force following columns:\n", 
+          paste0("\t", vcf_header_info_f1$colnm, collapse = "\n")))
   for(i in 1:nrow(vcf_header_info_f1)){
     df = vcf_header_info_f1[i, ]
     colfunc = .get_value_type(df$Type)
@@ -344,35 +348,37 @@ read_vcf_germline <- function(x, samp = NULL){
     mat[, colnm] = colfunc(mat[, colnm])
   }
   
-  rlogging::message("auto force column fmt type ...")
+  flog.info(">> VCF FMT: auto force column fmt type ...")
   vcf_header_fmt = vcf$header$FORMAT %>% data.frame(stringsAsFactors = F) %>% 
     mutate(colnm = paste0("fmt_", "", tolower(ID)))
   vcf_header_fmt_f1 = tidylog::filter(vcf_header_fmt, 
                                       Number %in% c(1, "A"), 
                                       Type %in% c("Integer", "Float"), 
                                       colnm %in% colnames(mat))
-  message("can auto-force following:\n", 
-          paste0("\t", vcf_header_fmt_f1$colnm, collapse = "\n"))
+  flog.info(paste0("can auto-force following:\n", 
+            paste0("\t", vcf_header_fmt_f1$colnm, collapse = "\n")))
   for(i in 1:nrow(vcf_header_fmt_f1)){
     df = vcf_header_fmt_f1[i, ]
     colfunc = .get_value_type(df$Type)
     mat[, df$colnm] = colfunc(mat[, df$colnm])
   }
   
-  rlogging::message("auto split column type R ...")
+  flog.info(">> VCF split alleles: auto split column type R ...")
   vcf_header_type_r = bind_rows(vcf_header_info, 
                                 vcf_header_fmt) %>% 
     tidylog::filter(Number == "R")
-  message("can split following ALLELE related vars:\n", 
-          paste0("\t", vcf_header_type_r$colnm, collapse = "\n"))
+  flog.info(paste0("can split following ALLELE related vars:\n", 
+            paste0("\t", vcf_header_type_r$colnm, collapse = "\n")))
   for(i in 1:nrow(vcf_header_type_r)){
     df = vcf_header_type_r[i, ]
+    flog.info(df$colnm)
     colfunc = .get_value_type(df$Type)
     # support upto three records
     colnms_new = paste0(df$colnm, c("_ref", "_alt", "_alt2"))
     # drop multi-allelic records
-    mat = tidyr::separate(mat, col = df$colnm, colnms_new, by = ",", extra = "drop", fill = "right", remove = F)
-    mat[, colnms_new] = colfunc(mat[, colnms_new])
+    mat = tidyr::separate(mat, col = df$colnm, colnms_new, sep = ",", extra = "drop", fill = "right", remove = F)
+    # convert value type them
+    mat[, colnms_new] = apply(mat[, colnms_new], 2, colfunc)
   }
   mat %<>% mutate(key = glue("{chrom}:{pos}_{ref}/{alt}"))
   
@@ -380,19 +386,13 @@ read_vcf_germline <- function(x, samp = NULL){
   return(list(vcf = vcf$vcf, tab = mat, header = vcf$header))
 }
 
+# example -------
 if(FALSE){
-  # ** try germ vcf -------
   x ="/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ponm/vcfs/WEX-1004-N.vcf.gz"
   
-  
-}
-
-
-if(FALSE){
   library(pacman)
   p_load(dplyr, janitor, glue, magrittr)
   
-  # EXAMPLE -------
   source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/parse_vcfs.R')
   x='/rsrch2/iacs/iacs_dep/sseth/flowr/runs/flowr_test/fastq_haplotyper-MS132-20150824-16-37-58-XScJT0OZ/tmp/GLizee-Pancreatic-MS132-MP013normalDNA.recalibed_1.haplotyper.vcf'
   x2 = parse_vcf(x)
@@ -404,7 +404,7 @@ if(FALSE){
   debug(parse_somatic_vcf);debug(parse_vcf)
   df = parse_somatic_vcf(x, '334187-T', '334187-N')
   
-  # ** m2: sarco ---------
+  # ** m2: sarco
   df_ion = read_rds("/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ionreporter/Exome_Sarcomatoid_334187-T.rds")
   fl_m2 = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/mutect2/WEX-334187-T___matched_f1_cleannms_snp.vcf"
   rds_m2 = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/mutect2/WEX-334187-T___matched_f1_cleannms_snp.rds"
@@ -450,7 +450,7 @@ if(FALSE){
   ggscatter(df_igv, "taf_fwd", "ion_taf_fwd")
   ggscatter(df_igv, "taf_rev", "ion_taf_rev")
   
-  # ** ggscatter ---------
+  # ** ggscatter 
   p_dp_full = filter(df_ion, type == "snp") %>% 
     gghistogram("t_dp") + scale_x_log10()
   # peak cov in this one sample seems to be about 50
@@ -477,7 +477,6 @@ if(FALSE){
 
 
 # EXTRA ---------------
-
 
 splt_vcf_func <- function(x){
   x = as.character(unlist(x))

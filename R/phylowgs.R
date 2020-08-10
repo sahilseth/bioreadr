@@ -1,4 +1,6 @@
-# phylowgs
+# !diagnostics off
+# https://stackoverflow.com/questions/39041115/fixing-a-multiple-warning-unknown-column
+
 # 
 # 
 # install:
@@ -130,19 +132,25 @@ phylowgs.titancna <- function(trk, samplename,
                      pwgsdir = pipe_str$phylowgs$dir,
                      cores = resources$pwgs$cpu,
                      # normal_and_abnormal_cn
-                     input_regions = opts_flow$envir$phylowgs_input_regions
+                     input_regions = opts_flow$envir$phylowgs_input_regions,
+                     
+                     phylowgs_sif = opts_flow$get("phylowgs_sif")
+                     
                      # pwgsdir = pipe_
                      ){
   
+  # print function name
+  # message(match.call()[1], " ", appendLF = F)
   check_args()
-  phylowgs_sif = "$HOME/singularity-images/phylowgs.sif"
+  
+  # phylowgs_sif = "$HOME/singularity-images/phylowgs.sif"
   
   # read in titancna trk
   # ./parse_cnvs.py -f titan -c 0.81 cnv_calls_segs.txt
   # ./create_phylowgs_inputs.py --cnvs sample1=cnvs.txt --vcf-type sample1=vardict sample1=sample.vcf
   # convert to phylowgs inputs:
   
-  source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/metadata_dnaseq.R')
+  # source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/metadata_dnaseq.R')
   
   if(nrow(trk) == 0)
     stop("no rows in trk")
@@ -222,27 +230,6 @@ phylowgs.titancna <- function(trk, samplename,
   
 }  
 
-calc_u.ccf <- function(ccf, m){
-  ccf*m
-}
-
-calc_ccf.u <- function(u, m){
-  return (u/m)
-}
-
-calc_m.u <- function(u){
-  if(u >=1)
-    m = round(abs(u), 0)
-  if(u < 1)
-    m = 1
-  m
-}
-
-
-calc_u  <- function(f, p, cn){
-  (f * 1/p) * (p*cn + (1-p)*2)
-  
-}
 
 phylowgs_parse_report.single_samp <- function(path = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/runs/1004/tmp/phylowgs/tesla", rds){
 

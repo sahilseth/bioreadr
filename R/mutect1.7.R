@@ -49,21 +49,21 @@ mutect1.7 <- function(trk,
                       variant_calling_mode,
                       
                       java_exe = opts_flow$get("java17_exe"),
-                      java_tmp = opts_flow$get("java_tmp"),
-                      java_mem = opts_flow$get("java_mem_str"),
+                      java_tmp = opts_flow$get("java17_tmp"),
+                      java_mem = opts_flow$get("java17_mem_str"),
                       # for gatherVcfs
                       gatk4_exe = opts_flow$get("gatk4_exe"),
                       
                       ref_fasta = opts_flow$get('ref_fasta'),
                       
-                      mutect_jar = opts_flow$get('mutect1_jar'),
-                      mutect_cpu = opts_flow$get('mutect1_cpu'),
-                      mutect_mem = opts_flow$get("mutect1_mem_str"),
+                      mutect1_jar = opts_flow$get('mutect1_jar'),
+                      mutect1_cpu = opts_flow$get('mutect1_cpu'),
+                      mutect1_mem_str = opts_flow$get("mutect1_mem_str"),
                       
-                      mutect_opts = opts_flow$get('mutect1_opts'),
+                      mutect1_opts = opts_flow$get('mutect1_opts'),
                       
-                      germline_vcf = opts_flow$get('germline_variants_vcf'),
-                      cosmic_vcf = opts_flow$get('cosmic_variants_vcf'),
+                      mutect1_germline_vcf = opts_flow$get('mutect1_germline_vcf'),
+                      mutect1_cosmic_vcf = opts_flow$get('mutect1_cosmic_vcf'),
                       mutect1_pon_vcf = opts_flow$get("mutect1_pon_vcf"),
 
                       # previous option, we will ALWAYS assume this is merged,
@@ -105,7 +105,7 @@ mutect1.7 <- function(trk,
   #                            is_merged = is_merged, split_by_chr = split_by_chr)
   
   # pipename = match.call()[[1]]
-  rlogging::message("Generating a mutect1.7 flowmat for sample: ", samplename)
+  flog.debug(paste0("Generating a mutect1.7 flowmat for sample: ", samplename))
   
   mutects <- paste0(bamset$outprefix_interval, ".mutect.txt")
   vcfs <- paste0(bamset$outprefix_interval, ".mutect.vcf")
@@ -114,9 +114,8 @@ mutect1.7 <- function(trk,
   # lapply(list(tumor_bam, normal_bam, bamset$outprefix_chr, bamset$chrs_names), length)
   
   intervals = bamset$intervals
-  mutect_default_opts = "--enable_extended_output"
   if(!is.null(mutect1_pon_vcf) & mutect1_pon_vcf != "" )
-    mutect_default_opts = glue("{mutect_default_opts} --normal_panel {mutect1_pon_vcf}")
+    mutect1_opts = glue("{mutect1_opts} --normal_panel {mutect1_pon_vcf}")
   # hg19_cosmic_v54_120711.vcf and dbsnp_132_b37.leftAligned.vcf
   
   # https://gatkforums.broadinstitute.org/gatk/discussion/2226/cosmic-and-dbsnp-files-for-mutect
@@ -126,15 +125,16 @@ mutect1.7 <- function(trk,
   # Sites in COSMIC are exempt from the "Panel of Normals" filter -- again these are typically recurrent events and this is a 
   # mechanism to bypass this filter if necessary
   # Sites in the output call_stats file are annotated as "COSMIC"
-  germline_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/dbsnp_138.b37.excluding_sites_after_129.vcf.gz"
+  # germline_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/dbsnp_138.b37.excluding_sites_after_129.vcf.gz"
+  # cosmic_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/hg19_cosmic_v54_120711.vcf"
   # For input string: "R", for input source: /rsrch3/home/iacs/sseth/ref/human/b37/annotations/broad-somatic-b37/af-only-gnomad.raw.sites.vcf.gz
   # The analysis MuTect currently does not support parallel execution with nt.  Please run your analysis without the nt option.                   
-  cmd_mutect <- glue("{java_exe} {mutect_mem} -Djava.io.tmpdir={java_tmp} -jar {mutect_jar} -T MuTect --reference_sequence {ref_fasta} ",
+  cmd_mutect <- glue("{java_exe} {mutect1_mem_str} -Djava.io.tmpdir={java_tmp} -jar {mutect1_jar} -T MuTect --reference_sequence {ref_fasta} ",
                      "--input_file:tumor {tumor_bam} --input_file:normal {normal_bam} ",
                      "--out {mutects} --vcf {vcfs} --coverage_file {wigs} ",
-                     "--dbsnp {germline_vcf} ",
-                     "--cosmic {cosmic_vcf} ",
-                     "{mutect_default_opts} {mutect_opts} {intervals}")
+                     "--dbsnp {mutect1_germline_vcf} ",
+                     "--cosmic {mutect1_cosmic_vcf} ",
+                     "{mutect1_opts} {intervals}")
   # test:
   # cmd_mutect[1:2]
 
@@ -169,8 +169,8 @@ mutect1.7 <- function(trk,
   #if(execute_cmds) sapply(cmds, system)
   
   flowmat = list(
-    m1.splt = cmd_mutect,
-    m1.mrg = cmds_mrg) %>% to_flowmat(samplename = samplename)
+    mutect1.splt = cmd_mutect,
+    mutect1.mrg = cmds_mrg) %>% to_flowmat(samplename = samplename)
   
   return(list(flowmat=flowmat, outfiles=list(merged_mutect_tsv = merged_mutect_tsv, merged_mutect_vcf = merged_mutect_tsv)))
   

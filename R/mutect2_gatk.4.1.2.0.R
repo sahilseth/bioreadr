@@ -195,11 +195,14 @@ mutect2.gatk4.1.2.0 <- function(
   mutect2_opts = opts_flow$get('mutect2_opts'),
   mutect2_create_bam_out = opts_flow$get('mutect2_create_bam_out'),
   mutect2_pon_vcf = opts_flow$get("mutect2_pon_vcf"),
+  mutect2_merge_stats_exe = opts_flow$get("mutect2_merge_stats_exe"),
   
   germline_vcf = opts_flow$get('germline_variants_vcf'),
   # for contamination
   germline_biallelic_vcf = opts_flow$get('germline_variants_biallelic_vcf'),
   
+  # we can use these generic intervals for all kinds of files and 
+  # filter later
   interval_split = opts_flow$get("capture_bi_wex_booster_intervals_split")
   
   
@@ -233,15 +236,16 @@ mutect2.gatk4.1.2.0 <- function(
                    split_by = "interval_split")
   
   # pipename = match.call()[[1]]
-  rlogging::message("Generating a mutect2 flowmat for sample: ", samplename)
+  flog.debug(paste0("Generating a mutect2 flowmat for sample: ", samplename))
 
+  # mutect2 ---------
   #mutect_opts = "--artifact_detection_mode -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS -L $regions_bed_fl"
   mutect_vcfs = paste0(bamset$outprefix_interval, ".mutect.vcf")
   mutect_f1r2s = paste0(bamset$outprefix_interval, ".f1r2.tar.gz")
   # -bamout {mutect_bams} 
   gatk_intervals = bamset$intervals
-  cmd_mutect <- glue("tname=$(gatk GetSampleName -I {tumor_bam} -O /dev/stdout 2> /dev/null); ",
-                     "nname=$(gatk GetSampleName -I {normal_bam} -O /dev/stdout 2> /dev/null); ",
+  cmd_mutect <- glue("tname=$({gatk4_exe} GetSampleName -I {tumor_bam} -O /dev/stdout 2> /dev/null); ",
+                     "nname=$({gatk4_exe} GetSampleName -I {normal_bam} -O /dev/stdout 2> /dev/null); ",
                      "{gatk4_exe} --java-options '-Xmx{mutect2_mem}g -XX:+UseParallelGC -XX:ParallelGCThreads={mutect2_cpu}' ",
                      "Mutect2 -R {ref_fasta} -I {tumor_bam} -I {normal_bam} ",
                      "-tumor $tname -normal $nname ",
@@ -276,8 +280,11 @@ mutect2.gatk4.1.2.0 <- function(
   # GatherVcfs
   # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/picard_vcf_GatherVcfs.php
   # gather should be faster
+  mutect2dir = basename(outprefix)
   cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} GatherVcfs -I {mutect_vcfs_i} -O {mutect_vcf}; ", 
-                      "bash ~/Dropbox/public/flow-r/my.ultraseq/pipelines/bin/m2_merge_vcf_stats.sh 'mutect2/*vcf.stats' {mutect_vcf}.stats")
+                      "bash {mutect2_merge_stats_exe} '{mutect2dir}/*vcf.gz.stats' {mutect_vcf}.stats;",
+                      "{gatk4_exe} IndexFeatureFile -I {mutect_vcf}")
+
   # we need two arguments, pattern and output file filename for the stats
   
   # this will be critical in ALL validation (in IGV)
@@ -335,13 +342,13 @@ mutect2.gatk4.1.2.0 <- function(
   cmd_filter2 = glue("{gatk4_exe} FilterMutectCalls -V {mutect_vcf} -R {ref_fasta} ",
                      "--contamination-table {tumor_cont_tab} --ob-priors {mutect_f1r2} -O {mutect_filt2_vcf}")
 
-  cmds <- list(m2.splt = cmd_mutect, 
-               m2.mrg = cmd_mergevcf,
-               m2.mrg = cmd_pileup,
-               m2.mrg = cmd_cont,
-               m2.mrg = cmd_filter1,
-               m2.mrg = cmd_learnf1r2,
-               m2.mrg = cmd_filter2)
+  cmds <- list(mutect2.splt = cmd_mutect, 
+               mutect2.mrg = cmd_mergevcf,
+               mutect2.mrg = cmd_pileup,
+               mutect2.mrg = cmd_cont,
+               mutect2.mrg = cmd_filter1,
+               mutect2.mrg = cmd_learnf1r2,
+               mutect2.mrg = cmd_filter2)
   # mutect_gather_bams = cmd_mutect_gather_bams
   
   flowmat = to_flowmat(cmds, samplename = samplename) %>% 

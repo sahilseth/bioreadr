@@ -55,7 +55,79 @@
 # -select-type SNP -restrict-alleles-to BIALLELIC \
 # -select "AF > ${minimum_allele_frequency}"
 
+# funcs ---------
+
+gatkcnv_pon <- function(counts,
+                        outfile,
+                        gatk4_exe = opts_flow$get("gatk4_exe"),
+                        gatkcnv_pon_opts = "--minimum-interval-median-percentile 5.0 --maximum-zeros-in-sample-percentage 5.0 --maximum-zeros-in-interval-percentage 5.0 --do-impute-zeros true --extreme-outlier-truncation-percentile 0.1 --number-of-eigensamples 20"
+){
+  check_args()
+  countsi = paste0("-I ", counts, collapse = " ")
+  cmd = glue("{gatk4_exe} --java-options '-Xmx32g' CreateReadCountPanelOfNormals ",
+              "{countsi} ",
+              "{gatkcnv_pon_opts} -O {outfile}")
+  cmd
+}
+
 # source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/run_cmd.R')
+gatkcnv_prep_filenms <- function(trk, gatkdir, gatkcnv_interval_mode){
+  
+  check_args()
+  
+  # check generic columns
+  trk = metadata_for_dnaseq(trk)
+  expect_columns(trk, c("outprefix", "outprefix_paired", "gender"))
+  
+  # add dir to outprefix
+  trk = dplyr::mutate(trk, 
+                      gatkcnv_prefix = file.path(gatkdir, outprefix), 
+                      gatkcnv_prefix_paired = file.path(gatkdir, outprefix_paired))
+  
+  # ceate a new trk with ALL reqd files
+  trk = trk %>% 
+    dplyr::mutate(
+      # skip taking basename of bam!
+      # bam = basename(bam),
+      # oprefix = glue("{outpath}{name}"),
+      #gatkcnv_counts = glue("{outprefix}.counts.tsv"), 
+      gatkcnv_acounts = glue("{gatkcnv_prefix}.allelicCounts.tsv"),
+      
+      # denoise:
+      gatkcnv_std_cr = glue("{gatkcnv_prefix}.standardizedCR.tsv"),
+      gatkcnv_dn_cr = glue("{gatkcnv_prefix}.denoisedCR.tsv"),
+      
+      ## ModelSegments outputs
+      # oprefix_final = glue("{outpath}{name}_clean"),
+      gatkcnv_hets = glue("{gatkcnv_prefix_paired}.hets.tsv"),
+      gatkcnv_hets_n = glue("{gatkcnv_prefix_paired}.hets.normal.tsv"),
+      gatkcnv_cr_seg = glue("{gatkcnv_prefix_paired}.cr.seg"),
+      gatkcnv_final_seg = glue("{gatkcnv_prefix_paired}.modelFinal.seg"),
+      ## CallCopyRatioSegments outputs
+      gatkcnv_called_seg = glue("{gatkcnv_prefix_paired}.called.seg")
+    )
+  
+  # create tmpfiles
+  if(gatkcnv_interval_mode == "split"){
+    trk = trk %>% 
+      dplyr::mutate(
+        gatkcnv_cnts_auto = glue("{gatkcnv_prefix}.counts_auto.tsv"), 
+        gatkcnv_cnts_allo = glue("{gatkcnv_prefix}.counts_allo.tsv"), 
+        
+        gatkcnv_dn_cr_auto = glue("{gatkcnv_prefix}.denoisedCR_auto.tsv"), 
+        gatkcnv_dn_cr_allo = glue("{gatkcnv_prefix}.denoisedCR_allo.tsv"), 
+        
+        gatkcnv_std_cr_auto = glue("{gatkcnv_prefix}.standardizedCR_auto.tsv"), 
+        gatkcnv_std_cr_allo = glue("{gatkcnv_prefix}.standardizedCR_allo.tsv")
+      )
+  }else if(gatkcnv_interval_mode == "merged"){
+    trk = trk %>% 
+      dplyr::mutate(
+        gatkcnv_cnts = glue("{gatkcnv_prefix}.counts.tsv"))
+  }
+
+  trk
+}
 
 .collect_read_counts <- function(bam, 
                                  counts,
@@ -78,14 +150,20 @@
 .denoise_counts <- function(counts,
                             std_cr,
                             dn_cr,
+                            
                             gatkcnv_pon_hdfs = opts_flow$get("gatkcnv_pon_hdfs"),
+                            gatkcnv_denoise_opts = opts_flow$get("gatkcnv_denoise_opts"),
+                                                        
                             gatk4_exe = opts_flow$get("gatk4_exe"),
                             run_cmds = F, redo = F){
-  check_args()
+  
+  check_args(ignore = c("gatkcnv_pon_auto_hdfs", "gatkcnv_pon_m_hdfs", "gatkcnv_pon_f_hdfs"))
+
   cmd = glue("{gatk4_exe} --java-options '-Xmx12g' DenoiseReadCounts ", 
              "-I {counts} --count-panel-of-normals {gatkcnv_pon_hdfs} ",
              "--standardized-copy-ratios {std_cr} ",
-             "--denoised-copy-ratios {dn_cr}")
+             "--denoised-copy-ratios {dn_cr} ",
+             "{gatkcnv_denoise_opts}")
   
   # if(test) return(cmd)
   # else, actually run the cmd
@@ -102,6 +180,7 @@
                              outprefix,
                              ref_dict = opts_flow$get("ref_dict"),
                              gatk4_exe = opts_flow$get("gatk4_exe"),
+                             gatkdir = pipe_str$gatkcnv$dir,
                              java_tmp = opts_flow$get("java_tmp"),
                              plot_minimum_contig_length = "46709983",
                              run_cmds = F, redo = F){
@@ -112,7 +191,7 @@
              "--denoised-copy-ratios {dn_cr} ",
              "--sequence-dictionary {ref_dict} ",
              "--minimum-contig-length 46709983 ",
-             "--output . ",
+             "--output {gatkdir} ",
              "--output-prefix {outprefix}")
   
   # if(test) return(cmd)
@@ -171,8 +250,8 @@
                             ref_dict = opts_flow$get("ref_dict"),
                             # ref_fasta = opts_flow$get("ref_fasta"),
                             plot_minimum_contig_length = "46709983",
-                            
-                            gatkcnv_modelseg_params = "--minimum-total-allele-count 30 --maximum-number-of-smoothing-iterations 100 ",
+                            #                                                                                               default is 25
+                            gatkcnv_modelseg_opts = "--minimum-total-allele-count 30 --minimum-total-allele-count-case 0 --maximum-number-of-smoothing-iterations 100 ",
                             redo = F, 
                             test = F, run_cmds = F
 ){
@@ -183,7 +262,7 @@
               "--denoised-copy-ratios {dn_cr} ",
               # 30 is default: alleleic copy ratios
               # default 25 for WGS
-              "{gatkcnv_modelseg_params} ",
+              "{gatkcnv_modelseg_opts} ",
               "--output . --output-prefix {outprefix}")
   if(!is.null(normal_acounts)){
     # message("adding matched normal counts to ModelSegments")
@@ -261,6 +340,7 @@ gatkcnv_somatic_pon <- function(df_trk,
   warnings()
   
   # ** denoise -------
+  # https://github.com/TheJacksonLaboratory/GLASS/blob/master/snakemake/cnv.smk
   tmp = mclapply(1:nrow(df_trk), function(i){
     .denoise_counts(bam = df_trk$BAM[i], 
                     counts = df_trk$gatkcnv_counts[i],
@@ -325,56 +405,40 @@ gatkcnv_somatic_pon <- function(df_trk,
 
 gatkcnv_somatic_matched <- function(trk,
                                     samplename,
-                                    # outpath = "gatkcnv/",
-                                    num_cores = nrow(df_trk), 
+                                    num_cores = 1,
+                                    gatkdir = pipe_str$gatkcnv$dir,
+
+                                    gatkcnv_interval_mode = pipe_str$opts$gatkcnv_interval_mode,
+                                    
                                     run_cmds = F){
-  # check generic columns
-  trk = metadata_for_dnaseq_tools(trk)
-  expect_columns(trk, c("outprefix", "outprefix_paired"))
   
-  trk = mutate(outprefix = file.path(pipe_str$gtkcnv$dir, outprefix), 
-         outprefix_paired = file.path(pipe_str$gtkcnv$dir, outprefix_paired))
-  
-  # ceate a new trk with ALL reqd files
-  trk %<>% 
-    mutate(
-      # skip taking basename of bam!
-      # bam = basename(bam),
-      # oprefix = glue("{outpath}{name}"),
-      gatkcnv_counts = glue("{outprefix}.counts.tsv"), 
-      gatkcnv_std_cr = glue("{outprefix}.standardizedCR.tsv"),
-      gatkcnv_dn_cr = glue("{outprefix}.denoisedCR.tsv"),
-      gatkcnv_acounts = glue("{outprefix}.allelicCounts.tsv"),
-      
-      ## ModelSegments outputs
-      # oprefix_final = glue("{outpath}{name}_clean"),
-      gatkcnv_hets = glue("{outprefix_paired}.hets.tsv"),
-      gatkcnv_cr_seg = glue("{outprefix_paired}.cr.seg"),
-      gatkcnv_final_seg = glue("{outprefix_paired}.modelFinal.seg"),
-      ## CallCopyRatioSegments outputs
-      gatkcnv_called_seg = glue("{outprefix_paired}.called.seg")
-    )
-  trk
-  
-  trk_tum = filter(trk, normal == "NO")
-  trk_norm = filter(trk, normal == "YES")
-  
-  # wranglr::mkdir("gatkcnv")
-  
+  check_args()
+
+  flog.debug(paste0("Generating a gatkcnv_somatic_matched flowmat for sample: ", samplename))
+
+  warnings()
+
+  trk <- gatkcnv_prep_filenms(trk, gatkdir, gatkcnv_interval_mode)
+  warnings()
+
+  trk_tum <- dplyr::filter(trk, normal == "NO")
+  trk_norm <- dplyr::filter(trk, normal == "YES")
+  gender <- trk$gender[1]
+  # wranglr::mkdir("gatkcnv") 
   
   # ** .collectreadcounts -------
   # need for ALL samples  i=1
   out_readcnts = mclapply(1:nrow(trk), function(i){
-    .collect_read_counts(trk$bam[i], 
-                         trk$gatkcnv_counts[i],
-                         run_cmds=run_cmds, redo = F)
+    .collect_read_counts(bam = trk$bam[i], 
+                         counts = trk$gatkcnv_cnts[i],
+                         run_cmds = run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   warnings()
   
   # ** denoise -------
   out_dr = mclapply(1:nrow(trk), function(i){
-    .denoise_counts(counts = trk$gatkcnv_counts[i],
+    .denoise_counts(counts = trk$gatkcnv_cnts[i],
                     std_cr = trk$gatkcnv_std_cr[i],
                     dn_cr = trk$gatkcnv_dn_cr[i],
                     run_cmds=run_cmds)
@@ -383,6 +447,7 @@ gatkcnv_somatic_matched <- function(trk,
   warnings()
   
   # ** plot denoise -------
+  # i=2
   out_plot_dr = mclapply(1:nrow(trk), function(i){
     .plot_denoise_cr(std_cr = trk$gatkcnv_std_cr[i],
                      dn_cr = trk$gatkcnv_dn_cr[i],
@@ -408,7 +473,7 @@ gatkcnv_somatic_matched <- function(trk,
   out_seg = mclapply(1:nrow(trk_tum), function(i){
     .model_segments(bam = trk_tum$bam[i], 
                     dn_cr = trk_tum$gatkcnv_dn_cr[i],
-                    outprefix = trk_tum$outprefix_paired[i],
+                    outprefix = trk_tum$gatkcnv_prefix_paired[i],
                     acounts = trk_tum$gatkcnv_acounts[i],
                     normal_acounts = trk_norm$gatkcnv_acounts[1],
                     
@@ -433,15 +498,23 @@ gatkcnv_somatic_matched <- function(trk,
   # value for case-only mode.  Default value: 0. 
   
   # write_tsv(df_trk, path = "gatkcnv/df_trk.tsv")
-  cmds <- list(gtkcnv.splt = unlist(out_readcnts), 
-               gtkcnv.splt = unlist(out_acounts),
-               gtkcnv.mrg = unlist(out_dr),
-               gtkcnv.mrg = unlist(out_plot_dr),
-               gtkcnv.mrg = unlist(out_seg))
+  
+  # since this is tumor normal, we expect multiple cmds in each case
+  out_readcnts = purrr::transpose(out_readcnts)
+  out_acounts = purrr::transpose(out_acounts)
+  out_dr = purrr::transpose(out_dr)
+  out_plot_dr = purrr::transpose(out_plot_dr)
+  out_seg = purrr::transpose(out_seg)
+  
+  cmds <- list(gatkcnv.splt = unlist(out_readcnts$cmds), 
+               gatkcnv.splt = unlist(out_acounts$cmds),
+               gatkcnv.mrg = unlist(out_dr$cmds),
+               gatkcnv.mrg = unlist(out_plot_dr$cmds),
+               gatkcnv.mrg = unlist(out_seg$cmds))
   # mutect_gather_bams = cmd_mutect_gather_bams
   
   flowmat = to_flowmat(cmds, samplename = samplename) %>% 
-    mutate(cmd = as.character(cmd))
+    dplyr::mutate(cmd = as.character(cmd))
   
   list(flowmat = flowmat, outfiles = list(), trk = trk)
 }
@@ -675,7 +748,12 @@ https://gatkforums.broadinstitute.org/gatk/discussion/7387/description-and-examp
 
 
 
-
+# read funcs -------
+read_counts <- function(x){
+  df <- data.table::fread(cmd = glue("grep -v '@' {x}"), data.table = F) %>%
+      as_tibble() %>%
+      clean_names()
+}
 
 
 

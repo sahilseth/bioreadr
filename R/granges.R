@@ -19,3 +19,40 @@ gr_intersect <- function(df_a, df_b){
   df_merge
   
 }
+
+
+# x = "bed/gatkcnv/AmpliSeqExome.20131001.designed.interval_list"
+to_gr.interval_list <- function(x){
+  # p_load(plyranges)
+  df = data.table::fread(cmd = glue("grep -v '@' {x}"), 
+                         data.table = F, col.names = c("seqnames", "start", "end", "strand", "name")) %>% 
+    as_tibble()
+  plyranges::as_granges(df)
+}
+
+
+to_gr.gatkcnv.cr <- function(x){
+  p_load(plyranges)
+  df = data.table::fread(cmd = glue("grep -v '@' {x}"), data.table = F) %>% 
+    as_tibble() %>% clean_names() %>% 
+    dplyr::rename(seqnames = contig)
+  plyranges::as_granges(df)
+}
+
+
+to_gr.gatkcnv.baf <- function(x){
+  
+  df = data.table::fread(cmd = glue("grep -v '@' {x}"), data.table = F) %>% 
+    as_tibble() %>% clean_names() %>% 
+    dplyr::rename(seqnames = contig, start = position) %>% 
+    dplyr::mutate(end = start)
+  plyranges::as_granges(df)
+  
+}
+
+
+
+
+
+# END
+

@@ -196,9 +196,9 @@ facets_flo <- function(bam_t, bam_n,
                        samplename,
                        oprefix,
                        
-                       snp_pileup_exe = opts_flow$get("snp_pileup_exe"),
-                       snp_pipeup_param = "-g -q15 -Q20 -P100 -r25,0",
-                       vcffl = opts_flow$get("vcffl"),
+                       snppileup_exe = opts_flow$get("snppileup_exe"),
+                       snppipeup_param = "-g -q15 -Q20 -P100 -r25,0",
+                       snppileup_vcf_fl = opts_flow$get("snppileup_vcf_fl"),
                        rscript_exe = opts_flow$get("rscript_exe"),
                        funr = "funr",
 
@@ -247,8 +247,8 @@ facets_flo <- function(bam_t, bam_n,
   # proc_min.nhet	30
   
   pileupfl = glue("{oprefix}_pileup.tmp.gz")
-  snp_pipeup_param = "-g -q15 -Q20 -P100 -r25,0"
-  cmd0 = glue("{snp_pileup_exe} -g -q15 -Q20 -P100 -r25,0 {vcffl} {pileupfl} {bam_n} {bam_t}")
+  # snppipeup_param = "-g -q15 -Q20 -P100 -r25,0"
+  cmd0 = glue("{snppileup_exe} {snppipeup_param} {snppileup_vcf_fl} {pileupfl} {bam_n} {bam_t}")
   cmd0 = as.character(cmd0)
   #cmd1 = glue("funr my.ultraseq::facets_r rcfl={pileupfl} pre_snp.nbhd=250 pre_cval=50 proc_cval=300 proc_min.nhet=30")
   

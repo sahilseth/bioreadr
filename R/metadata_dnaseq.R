@@ -35,11 +35,26 @@
 
 source('~/Dropbox/public/github_wranglr/R/expect_columns.R')
 
+check_dnaseq_metadata <- function(...){
+  .Deprecated("metadata_for_dnaseq")
+  metadata_for_dnaseq(...)
+}
+
+#' metadata_for_dnaseq
+#'
+#' @param trk 
+#' @param normalize_file_names 
+#' @param basename_of_files 
+#' @param stage 
+#' @param check_files_exist 
+#'
+#' @export
+#'
 metadata_for_dnaseq <- function(trk, 
-                                      normalize_file_names = F,
-                                      basename_of_files = normalize_file_names,
-                                      stage = "none",
-                                      check_files_exist = F){
+                                normalize_file_names = F,
+                                basename_of_files = normalize_file_names,
+                                stage = "none",
+                                check_files_exist = F){
   
   pacman::p_load(testit)
   
@@ -50,23 +65,52 @@ metadata_for_dnaseq <- function(trk,
   trk %<>% clean_names()
   
   # flexible to allow pairs, and multiple normals
-  expect_columns(trk, c("individual", "name", "normal", "bam"))
+  wranglr::expect_columns(trk, c("individual", "name", "normal", "bam"))
   # extra for longitudinal data
   # expect_columns(trk, "sampletype")
-  expect_columns(trk, "timepoint")
+  wranglr::expect_columns(trk, "timepoint")
   
   if(stage == "variants_called"){
     .check_variant_columns(trk, normalize_file_names)
   }
+  trk %<>% dplyr::mutate(gender = .resolve_gender.trk(gender), 
+                         normal = .resolve_normal.trk(normal))
   
   attr(trk, "metadata_type") = "dnaseq"
   trk
 }
 
-check_dnaseq_metadata <- function(...){
-  .Deprecated("metadata_for_dnaseq")
-  metadata_for_dnaseq(...)
+.resolve_normal.trk <- function(x){
+  vals = c("NO", "YES")
+  if( !all(x %in% vals) ){
+    stop("normal needs to have values: ", paste0(vals, collapse = " "))
+  }
+  x
 }
+
+.resolve_gender.trk <- function(x){
+  sapply(x, function(xi){
+    if (xi %in% c("male", "Male","MALE","m", "M")){
+      xi = "m"
+    }else{
+      xi = "f"
+    }
+    xi
+  })
+}
+
+# titan require full gender
+.resolve_gender.titancna <- function(x){
+  sapply(x, function(xi){
+    if (xi %in% c("male", "Male","MALE","m", "M")){
+    xi = "male"
+  }else{
+    xi = "female"
+  }
+  xi
+  })
+}
+
 
 metadata_for_dnaseq_tools = metadata_for_dnaseq
 as_dnaseq_metadata = metadata_for_dnaseq_tools

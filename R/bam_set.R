@@ -16,7 +16,7 @@ bam_set <- function(bam,
                     outprefix, 
                     ref_fasta, 
                     interval_split,
-                    split_by = c("none", "chr_len", "interval_split")){
+                    split_by = c("none", "chr_len", "interval_split", "chr")){
   
   split_by = match.arg(split_by)
   obj = list()
@@ -56,14 +56,18 @@ bam_set <- function(bam,
     obj$intervals = paste0(" -L ", intervals)
     obj$outprefix_interval = sprintf("%s_%03d", obj$outprefix, 1:length(intervals))
 
+  }else if(split_by == "chr"){
+    # bam names
+    obj$chr_names = obj$chr_names[1:25]
+    obj$outprefix_chr <- paste(obj$outprefix , obj$chr_names, sep = "_") 
+    obj$intervals = obj$chr_names
+
   }else if(split_by == "none"){
     
     obj$outprefix_chr = obj$outprefix 
-    obj$gatk_intervals = ""
+    obj$intervals = ""
     
   }
-  
-  
   obj
 }
 

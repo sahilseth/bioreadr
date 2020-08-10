@@ -1,7 +1,7 @@
 
 
 # https://bioconductor.org/packages/release/bioc/vignettes/GEOquery/inst/doc/GEOquery.html
-
+# http://einstein:2500/notebooks/projects/packs_my.db/misc/geo/download_process_geo.ipynb#
 
 if(FALSE){
   
@@ -17,6 +17,10 @@ if(FALSE){
   gseid = "GSE81540" # super series
   gseid = "GSE81538"
   gseid = "GSE96058"
+  
+  gseid = "GSE87455"
+  
+  
   
 }
 
@@ -57,7 +61,59 @@ geo_read_supp_mats <- function(fls_supp,
   lst_mats
 }
 
+if(FALSE){
+  geodir = "~/rsrch1_data/public_data/geo"
+  source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/geo_downloader.R')
+  
+  gseid = "GSE87455"
+}
 
+geo_download.illumina <- function(gseid, geodir, 
+                                  download_suppl = T,
+                                  read_suppl = F
+                                  ){
+  library(pacman)
+  p_load(GEOquery, dplyr, magrittr, readr, glue)
+  
+  # get the series matrix
+  message("download matrix")
+  # https://bioconductor.org/packages/release/bioc/vignettes/GEOquery/inst/doc/GEOquery.html
+  gse_mat <- getGEO(gseid, destdir = geodir, GSEMatrix = T, AnnotGPL = FALSE, getGPL = TRUE)
+
+  message("extract phenodata")
+  df_trk = phenoData(gse_mat[[1]])@data# %>% tbl_df()
+  # df_trk = lapply(gse_mat, function(x){ phenoData(x)@data }) %>% 
+  #   do.call(rbind, .)
+  df_trk = lapply(gse_mat, function(x){ phenoData(x)@data }) %>% 
+    bind_rows() %>% data.frame()
+  rownames(df_trk) = df_trk$title
+  
+  # to download mats
+  message("download ")
+  gse <- getGEO(gseid, destdir = geodir, GSEMatrix = F, AnnotGPL = FALSE, getGPL = TRUE)
+  # class(gse[[1]])
+  length(gse)
+  # platform:
+  gse@gpls
+  
+  message("download cell files")
+  fls_supp = getGEOSuppFiles(gseid, baseDir = geodir)
+  
+  message("read supp fls")
+  if(read_suppl)
+    lst_mats = geo_read_supp_mats(fls_supp)
+  
+  # create a mae
+  p_load(MultiAssayExperiment, SummarizedExperiment)
+  # confirm the order is correct:
+  # as.character(df_trk$title) == colnames(lst_mats[[1]])
+  
+  mae = MultiAssayExperiment(experiments = lst_mats, 
+                             colData = df_trk)
+  write_rds(mae, glue("{geodir}/{gseid}/mae.rds"))
+  
+    
+}
 
 geo_download <- function(gseid, geodir){
   
@@ -65,6 +121,8 @@ geo_download <- function(gseid, geodir){
   p_load(GEOquery, dplyr, magrittr, readr, glue)
   
   # get the series matrix
+  message("download matrix")
+  # https://bioconductor.org/packages/release/bioc/vignettes/GEOquery/inst/doc/GEOquery.html
   gse_mat <- getGEO(gseid, destdir = geodir, GSEMatrix = T, AnnotGPL = FALSE, getGPL = TRUE)
 
   # extract phenodata
@@ -78,7 +136,8 @@ geo_download <- function(gseid, geodir){
   # change the rowname
   rownames(df_trk) = df_trk$title
   
-  # to download suppl files
+  # to download mats
+  message("download ")
   gse <- getGEO(gseid, destdir = geodir, GSEMatrix = F, AnnotGPL = FALSE, getGPL = TRUE)
   # class(gse[[1]])
   length(gse)
@@ -118,3 +177,47 @@ geo_download <- function(gseid, geodir){
   
 }
 
+#' @param fls is directly from `getGEOSuppFiles`; df with 
+untar_raw_fls <- function(df_fl){
+  fl = rownames(df_fl)
+  message("files (will use only 1st)", fl)
+  fl = fl[1]
+  fl = tools::file_path_as_absolute(fl)
+  #getOption("unzip")
+  # requires SINGLE file
+  tmp = untar(fl, exdir = dirname(fl))
+  fls_unzip = list.files(path = dirname(fl), full.names = T)
+  fls_unzip = setdiff(fl)
+  fls_unzip
+}
+
+# convert the eset into SummarizedExperiment
+to_se.eset <- function(es){
+  # add to metadata
+  value_description = gse@gsms[[1]]@dataTable@columns %>% filter(Column == "VALUE") %>% 
+    pull(Description) %>% as.character()
+  
+  mat = exprs(out$es[[1]])
+  # extract coldata
+  phen = phenoData(out$es[[1]])
+  df_coldata = phen@data  %>% clean_names()
+  df_coldata_desc = phen@varMetadata
+  # extract rowdata
+  feat = featureData(out$es[[1]])
+  df_rowdata = feat@data  %>% clean_names()
+  df_rowdata_desc = feat@varMetadata
+  # create SummarizedExperiment
+  se = SummarizedExperiment(list(mat = mat), 
+                            rowData = df_rowdata, colData = df_coldata, 
+                            metadata = list(df_coldata_desc = df_coldata_desc,
+                                            df_rowdata_desc = df_rowdata_desc,
+                                            value_description = value_description))
+  se
+}
+
+
+
+
+
+
+# END
