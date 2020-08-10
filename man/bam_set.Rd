@@ -9,7 +9,7 @@ bam_set(
   outprefix,
   ref_fasta,
   interval_split,
-  split_by = c("none", "chr_len", "interval_split")
+  split_by = c("none", "chr_len", "interval_split", "chr")
 )
 }
 \arguments{

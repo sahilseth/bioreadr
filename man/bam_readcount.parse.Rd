@@ -4,7 +4,7 @@
 \alias{bam_readcount.parse}
 \title{parse read count}
 \usage{
-bam_readcount.parse(x, samplename, bed)
+bam_readcount.parse(x, samplename, bed, type = c("snv", "indel"))
 }
 \arguments{
 \item{x}{something}

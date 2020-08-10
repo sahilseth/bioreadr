@@ -39,3 +39,8 @@ It does not invalidate your results and you can safely ignore this error,
 but you should not use the single ended mapping quality field of the output.
 Run BAM readcount
 }
+\details{
+should be 1-based:
+
+The list of regions should be formatted as chromosome start and end. Each field should be tab separated and coordinates should be 1-based.
+}

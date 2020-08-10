@@ -4,7 +4,18 @@
 \alias{titancna_somatic_matched}
 \title{Title}
 \usage{
-titancna_somatic_matched(trk, samplename, num_cores = nrow(df_trk), test = T)
+titancna_somatic_matched(
+  trk,
+  samplename,
+  run_cmds = F,
+  funr_exe = opts_flow$get("R_funr_exe"),
+  num_cores = 4,
+  rscript_exe = opts_flow$envir$R.sing_rscript,
+  titandir = pipe_str$titancna$dir,
+  titancna_cluster_min = opts_flow$envir$titancna_cluster_min,
+  titancna_cluster_max = opts_flow$envir$titancna_cluster_max,
+  titancna_opts = opts_flow$envir$titancna_opts
+)
 }
 \arguments{
 \item{trk}{}
