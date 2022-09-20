@@ -22,7 +22,6 @@
 
 
 
-
 #' kallisto PE fqsheet
 #' 
 #' @param fqsheet needs columns: samplename, lane, num, read

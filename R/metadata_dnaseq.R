@@ -33,7 +33,7 @@
 # ~/.rsrch1/iacs/iacs_dep/sseth/projects2/ss_tnbc/data/artemis/wex/ms51_dna_b1/bams/185_145_GB-D.bwa_recalibed.bam        NA      185_145 185_145_GB-D    GB      YES     ms51_dna_b1     2
 
 
-source('~/Dropbox/public/github_wranglr/R/expect_columns.R')
+# source('~/Dropbox/public/github_wranglr/R/expect_columns.R')
 
 check_dnaseq_metadata <- function(...){
   .Deprecated("metadata_for_dnaseq")

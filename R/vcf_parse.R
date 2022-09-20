@@ -9,17 +9,35 @@ as_c <- function(...) {
   as.character(unlist(...))
 }
 
+# transpose, if header info is NOT a matrix
+t2 <- function(x){
+  if(class(x)[1] == "matrix")
+    x
+  else
+    t(x)
+}
+
 # split vals --------
-splt_vcf_format <- function(x, format, prefix, .debug = F){
+splt_vcf_format <- function(x, format, prefix){
   x = as.character(unlist(x))
   format = as.character(unlist(format))
   
   lst <- lapply(1:length(x), function(i){
-    if(.debug) message(i)
+    flog.debug(i)
     xi = x[i];formati = format[i]
     splt = strsplit(xi, ":")[[1]]
     nms = tolower(strsplit(formati, ":")[[1]])
-    names(splt) = paste(prefix, nms, sep = "")
+    len_splt = length(splt)
+    len_nms = length(nms)
+    
+    # for muse, NORMAL has less fields, assume last one is missing
+    # last var in TUMOR is variant type!
+    flog.debug(glue("len_splt: {len_splt}, len_nms: {len_nms}"))
+    if(len_splt < len_nms)
+      names(splt) <- paste(prefix, nms[1:len_splt], sep = "")
+    else
+      names(splt) = paste(prefix, nms, sep = "")
+
     ret = as.data.frame(t(splt), stringsAsFactors = FALSE)
     return(ret)
   })
@@ -71,85 +89,6 @@ splt_vcf_info <- function(x, cores = 1){
 
 
 
-#' Parse a VCF file into a TSV to be processed and annotated
-#'
-#' @param x a vcf file to be parsed
-#' @param cores something 
-#'
-#' @export
-read_vcf <- function(x, cores = 1){
-  require(dplyr)
-  require(parallel)
-  
-  # check if its a bedr object
-  rlogging::message("Reading file...")
-  if(is.list(x)){
-    if(length(x$header) > 1){
-      message("using provided  bedr::vcf object")
-      vcf = x
-    }else{
-      stop("you supplied a list, however it is not a bedr object")
-    }
-  }else{
-    # use bedr (trusting them :)
-    vcf = bedr::read.vcf(x)
-  }
-  # if(tools::file_ext(x) == "gz"){
-  #   fl_con = gzfile(x)
-  # }else{
-  #   fl_con = file(x)
-  # }
-  # 
-  # # assuming that header is not longer than 100
-  # hd = scan(fl_con, what = "character", sep = "\n", n = 1000, quiet = TRUE)
-  # hd_row = grep("#CHROM", hd)
-  # hd = tolower(strsplit(hd[hd_row], "\t")[[1]])
-  # col_classes = paste(rep("c", length(hd)), collapse = "")
-  # 
-  # #tab = data.table:::fread(x, data.table = FALSE, header = FALSE, skip = hd_row, sep = "\t", colClasses = "character")
-  # tab = readr::read_tsv(x, col_names = FALSE, skip = hd_row, col_types = col_classes)
-  # colnames(tab) = gsub("#chrom", "chrom", hd)
-  # #tab = tbl_df(tab)
-  
-  flog.info("Parsing info columns...")
-  # debug(splt_vcf_info)
-  info_cols = splt_vcf_info(vcf$vcf$INFO, cores = cores)
-  colnames(info_cols) = paste0("info_", colnames(info_cols))
-  
-  # total cols
-  flog.info("Parsing format columns...")
-  cols = colnames(vcf$vcf)
-  cols_samp = seq(grep("FORMAT", cols) + 1, ncol(vcf$vcf))
-  cols_samp = cols[cols_samp]
-  if(length(cols_samp) > 0){
-    message(" found ", length(cols_samp), " samples")
-    # samp="334187-N"
-    lst_tmp = lapply(cols_samp, function(samp){
-      message(samp)
-      format_cols = NA
-      format_cols = splt_vcf_format(x = vcf$vcf[, ..samp], format = vcf$vcf$FORMAT, prefix = "")
-      cols_format = colnames(format_cols)
-      # add fmt: to be sure where this column is coming from
-      colnames(format_cols) = glue::glue("{samp}_fmt_{cols_format}")
-      format_cols
-    })
-    format_cols = do.call(cbind, lst_tmp)
-    # head(format_cols)
-  }else{
-    flog.info("no format columns")
-  }
-  # select vcf fixed
-  colfixed = !colnames(vcf$vcf) %in% c("FORMAT", cols_samp, "INFO")
-  
-  flog.info("Assembling data")
-  tab2 = tbl_df(cbind(vcf$vcf[, ..colfixed], info_cols, format_cols))
-  head(tab2)
-  colnames(tab2) = tolower(colnames(tab2))
-  return(list(vcf = vcf$vcf, tab = tab2, header = vcf$header))
-
-}
-
-parse_vcf = read_vcf
 
 .get_sample_names_mutect2 <- function(header){
   
@@ -157,6 +96,84 @@ parse_vcf = read_vcf
 }
 
 # main funcs -------
+#' Parse a VCF file into a TSV to be processed and annotated
+#'
+#' @param x a vcf file to be parsed
+#' @param cores something
+#'
+#' @export
+read_vcf <- function(x, cores = 1) {
+  require(dplyr)
+  require(parallel)
+
+  # check if its a bedr object
+  flog.info("Reading file...")
+  if (is.list(x)) {
+    if (length(x$header) > 1) {
+      flog.info("using provided  bedr::vcf object")
+      vcf <- x
+    } else {
+      stop("you supplied a list, however it is not a bedr object")
+    }
+  } else {
+    # use bedr (trusting them :)
+    vcf <- bedr::read.vcf(x)
+  }
+  # if(tools::file_ext(x) == "gz"){
+  #   fl_con = gzfile(x)
+  # }else{
+  #   fl_con = file(x)
+  # }
+  #
+  # # assuming that header is not longer than 100
+  # hd = scan(fl_con, what = "character", sep = "\n", n = 1000, quiet = TRUE)
+  # hd_row = grep("#CHROM", hd)
+  # hd = tolower(strsplit(hd[hd_row], "\t")[[1]])
+  # col_classes = paste(rep("c", length(hd)), collapse = "")
+  #
+  # #tab = data.table:::fread(x, data.table = FALSE, header = FALSE, skip = hd_row, sep = "\t", colClasses = "character")
+  # tab = readr::read_tsv(x, col_names = FALSE, skip = hd_row, col_types = col_classes)
+  # colnames(tab) = gsub("#chrom", "chrom", hd)
+  # #tab = as_tibble(tab)
+
+  flog.info("Parsing info columns...")
+  # debug(splt_vcf_info)
+  info_cols <- splt_vcf_info(vcf$vcf$INFO, cores = cores)
+  colnames(info_cols) <- paste0("info_", colnames(info_cols))
+
+  # total cols
+  flog.info("Parsing format columns...")
+  cols <- colnames(vcf$vcf)
+  cols_samp <- seq(grep("FORMAT", cols) + 1, ncol(vcf$vcf))
+  cols_samp <- cols[cols_samp]
+  if (length(cols_samp) > 0) {
+    message(" found ", length(cols_samp), " samples")
+    # samp="334187-N"
+    lst_tmp <- lapply(cols_samp, function(samp) {
+      message(samp)
+      format_cols <- NA
+      format_cols <- splt_vcf_format(x = vcf$vcf[, ..samp], format = vcf$vcf$FORMAT, prefix = "")
+      cols_format <- colnames(format_cols)
+      # add fmt: to be sure where this column is coming from
+      colnames(format_cols) <- glue::glue("{samp}_fmt_{cols_format}")
+      format_cols
+    })
+    format_cols <- do.call(cbind, lst_tmp)
+    # head(format_cols)
+  } else {
+    flog.info("no format columns")
+  }
+  # select vcf fixed
+  colfixed <- !colnames(vcf$vcf) %in% c("FORMAT", cols_samp, "INFO")
+
+  flog.info("Assembling data")
+  tab2 <- as_tibble(cbind(vcf$vcf[, ..colfixed], info_cols, format_cols))
+  head(tab2)
+  colnames(tab2) <- tolower(colnames(tab2))
+  return(list(vcf = vcf$vcf, tab = tab2, header = vcf$header))
+}
+parse_vcf <- read_vcf
+
 
 #' Parse a somatic VCF, with two samples.
 #'
@@ -167,47 +184,75 @@ parse_vcf = read_vcf
 #' @export
 read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   
-  check_args()
   
-  # rlogging::message("Reading file...")
+  # flog.info("Reading file...")
   # add a read_vcf function
   vcf = read_vcf(x)
   mat = vcf$tab
+  head(mat)
   
-  
-  rlogging::message("switch names...")
+  flog.info("switch names...")
   # check if this is mutect
   if(length(vcf$header$tumor_sample) > 0 & is.null(samp)){
-    message(" picking tumor_sample from vcf")
+    flog.info("picking tumor_sample from vcf")
     samp = vcf$header$tumor_sample
   }
   if(length(vcf$header$normal_sample) > 0 & is.null(ref)){
-    message(" picking normal_sample from vcf")
+    flog.info("picking normal_sample from vcf")
     ref = vcf$header$normal_sample
   }
+  # check_args()
   
   colnms = colnames(mat)
-  colnms_new = gsub(tolower(samp), "t", colnms) %>% gsub(tolower(ref), "n", .)
+  colnms_new = gsub(tolower(samp), "t", colnms)
+  if(!is.null(ref))
+    colnms_new %<>% gsub(tolower(ref), "n", .)
   colnames(mat) = colnms_new
   head(mat)
   
-  rlogging::message("auto force column info type ...")
-  vcf_header_info = vcf$header$INFO %>% data.frame(stringsAsFactors = F) %>% 
-    mutate(colnm = paste0("info_", tolower(ID)))
+  flog.info("INFO: auto force column info type ...")
+  vcf_header_info = vcf$header$INFO %>% t2() %>% 
+    data.frame(stringsAsFactors = F) %>% 
+    dplyr::mutate(colnm = paste0("info_", tolower(ID)))
   vcf_header_info_f1 = tidylog::filter(vcf_header_info, 
                                        Number %in% c(1, "A"), 
                                        Type %in% c("Integer", "Float"), 
                                        colnm %in% colnames(mat))
-  message("can auto-force following:\n", 
-          paste0("\t", vcf_header_info_f1$colnm, collapse = "\n"))
-  for(i in 1:nrow(vcf_header_info_f1)){
-    df = vcf_header_info_f1[i, ]
-    colfunc = .get_value_type(df$Type)
-    colnm = df$colnm
-    mat[, colnm] = colfunc(mat[, colnm])
+  if(length(vcf_header_info_f1$colnm) > 0){
+    flog.info(paste0("can auto-force following:\n", 
+            paste0("\t", vcf_header_info_f1$colnm, collapse = "\n")))
+    for(i in 1:nrow(vcf_header_info_f1)){
+      df = vcf_header_info_f1[i, ]
+      colfunc = .get_value_type(df$Type)
+      colnm = df$colnm
+      # mat[, colnm] = colfunc(mat[, colnm])
+      mat %<>% mutate_at(colnm, colfunc)
+
+    }
   }
-  
-  rlogging::message("auto force column fmt type ...")
+
+  flog.info("auto split column type R ...")
+  vcf_header_type_info_r <- vcf_header_info %>% filter(Number == "R")
+  if (nrow(vcf_header_type_info_r) > 0) {
+    flog.info(paste0(
+      "can split following ALLELE related vars:\n",
+      paste0("\t", vcf_header_type_info_r$colnm, collapse = "\n")
+    ))
+    for (i in 1:nrow(vcf_header_type_info_r)) {
+      df <- vcf_header_type_info_r[i, ]
+      colfunc <- .get_value_type(df$Type)
+
+      # support upto three records
+      colnms_new <- paste0(df$colnm, c("_ref", "_alt", "_alt2"))
+      # drop multi-allelic records
+      mat <- tidyr::separate(mat, col = df$colnm, colnms_new, sep = ",", extra = "drop", fill = "right", remove = F)
+      # mat[, colnms_new] <- colfunc(mat[, colnms_new])
+      mat %<>% mutate_at(colnms_new, colfunc)
+
+    }
+  }
+
+  flog.info("FMT: auto force column fmt type ...")
   vcf_header_fmt = vcf$header$FORMAT %>% data.frame(stringsAsFactors = F) %>% 
     mutate(colnm_t = paste0("t_fmt_", "", tolower(ID)),
            colnm_n = paste0("n_fmt_", "", tolower(ID)))
@@ -216,51 +261,41 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
                                       Type %in% c("Integer", "Float"), 
                                       colnm_t %in% colnames(mat),
                                       colnm_n %in% colnames(mat))
-  message("can auto-force following:\n", 
-          paste0("\t", vcf_header_fmt_f1$colnm_t, " ", vcf_header_fmt_f1$colnm_n, collapse = "\n"))
-  for(i in 1:nrow(vcf_header_fmt_f1)){
-    df = vcf_header_fmt_f1[i, ]
-    colfunc = .get_value_type(df$Type)
-    mat[, df$colnm_t] = colfunc(mat[, df$colnm_t])
-    mat[, df$colnm_n] = colfunc(mat[, df$colnm_n])
-  }
-  
-  rlogging::message("auto split column type R ...")
-  vcf_header_type_info_r = vcf_header_info %>% filter(Number == "R")
-  if(nrow(vcf_header_type_info_r) > 0 ){
-    message("can split following ALLELE related vars:\n", 
-            paste0("\t", vcf_header_type_info_r$colnm, collapse = "\n"))
-    for(i in 1:nrow(vcf_header_type_info_r)){
-      df = vcf_header_type_info_r[i, ]
+  flog.info(paste0("can auto-force following:\n", nrow(vcf_header_fmt_f1),
+          paste0("\t", vcf_header_fmt_f1$colnm_t, " ", vcf_header_fmt_f1$colnm_n, collapse = "\n")))
+  if(nrow(vcf_header_fmt_f1) > 0){
+    for(i in 1:nrow(vcf_header_fmt_f1)){
+      df = vcf_header_fmt_f1[i, ]
       colfunc = .get_value_type(df$Type)
-      
-      # support upto three records
-      colnms_new = paste0(df$colnm, c("_ref", "_alt", "_alt2"))
-      # drop multi-allelic records
-      mat = tidyr::separate(mat, col = df$colnm, colnms_new, by = ",", extra = "drop", fill = "right", remove = F)
-      mat[, colnms_new] = colfunc(mat[, colnms_new])
-      
+      # mat[, df$colnm_t] = colfunc(mat[, df$colnm_t])
+      # mat[, df$colnm_n] = colfunc(mat[, df$colnm_n])
+      mat %<>% mutate_at(c(df$colnm_t, df$colnm_n), colfunc)
     }
   }
   
   vcf_header_fmt_r = vcf_header_fmt %>% filter(Number == "R")
-  if(nrow(vcf_header_fmt_r) > 0 ){
-    message("can split following ALLELE related vars:\n", 
-            paste0("\t", vcf_header_fmt_r$colnm_t, collapse = "\n"))
+  if( nrow(vcf_header_fmt_r) > 0 ){
+    flog.info(paste0("can split following ALLELE related vars:\n", 
+            paste0("\t", vcf_header_fmt_r$colnm_t, collapse = "\n")))
     for(i in 1:nrow(vcf_header_fmt_r)){
       df = vcf_header_fmt_r[i, ]
       colfunc = .get_value_type(df$Type)
       
       # support upto three records
       colnms_t_new = paste0(df$colnm_t, c("_ref", "_alt", "_alt2"))
-      mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, by = ",", extra = "drop", fill = "right", remove = F)
-      # repeat for normal sample
-      colnms_n_new = paste0(df$colnm_n, c("_ref", "_alt", "_alt2"))
-      mat = tidyr::separate(mat, col = df$colnm_n, colnms_n_new, by = ",", extra = "drop", fill = "right", remove = F)
-      
+      mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, sep = ",", extra = "drop", fill = "right", remove = F)
       # change col type:
-      mat[, colnms_t_new] = colfunc(mat[, colnms_t_new])
-      mat[, colnms_n_new] = colfunc(mat[, colnms_n_new])
+      mat %<>% mutate_at(colnms_t_new, colfunc)
+
+      # repeat for normal sample
+      if(!is.null(ref)){
+        colnms_n_new = paste0(df$colnm_n, c("_ref", "_alt", "_alt2"))
+        mat = tidyr::separate(mat, col = df$colnm_n, into = colnms_n_new, sep = ",", extra = "drop", fill = "right", remove = F)
+        mat %<>% mutate_at(colnms_n_new, colfunc)
+      }
+      
+      # mat[, colnms_t_new] = colfunc(mat[, colnms_t_new])
+      # mat[, colnms_n_new] = colfunc(mat[, colnms_n_new])
     }
   }
   
@@ -268,12 +303,10 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   
   head(mat)
   
-  
-  
   # cols_info_int =  %>% 
   #   filter(Number == 1, Type == "Integer")
   
-  # mat = tbl_df(as.data.frame(mat,  stringsAsFactors = FALSE))
+  # mat = as_tibble(as.data.frame(mat,  stringsAsFactors = FALSE))
   # colnames(mat) = tolower(colnames(mat))
   # samplenames_vcf = colnames(mat)[grep("format", colnames(mat)) + 1:2]
   # samplenames_input = c(samp, ref)
@@ -284,24 +317,24 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   # samp = colnames(mat)[grep("format", colnames(mat)) + 1]
   # ref = colnames(mat)[grep("format", colnames(mat)) + 2]
   
-  # rlogging::message("Parsing format columns...")
+  # flog.info("Parsing format columns...")
   # tcols = splt_vcf_format(x = mat[,samp], format = mat$format, prefix = "t_")
   # ncols = splt_vcf_format(x = mat[,ref], format = mat$format, prefix = "n_")
   
-  # rlogging::message("Parsing info columns...")
+  # flog.info("Parsing info columns...")
   # infocols = splt_vcf_info(mat$info)
   
   # not sure what this is
-  # rlogging::message("Parsing func...")
+  # flog.info("Parsing func...")
   #funccols = splt_vcf_func(mat$func)
   #infocols[1:100,] %>% View()
   # mat$t_sample = samp
   # mat$n_sample = ref
   # colsel = !colnames(mat) %in% c("format", samp, ref, "info")
   
-  # rlogging::message("Assembling data")
-  #mat = tbl_df(cbind(mat[, colsel], tcols, ncols, infocols, funccols))
-  # mat = tbl_df(cbind(mat[, colsel], tcols, ncols, infocols))
+  # flog.info("Assembling data")
+  #mat = as_tibble(cbind(mat[, colsel], tcols, ncols, infocols, funccols))
+  # mat = as_tibble(cbind(mat[, colsel], tcols, ncols, infocols))
   return(list(vcf = vcf$vcf, tab = mat, header = vcf$header))
   
 }
@@ -316,7 +349,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
 #' @export
 read_vcf_germline <- function(x, samp = NULL){
   
-  # rlogging::message("Reading file...")
+  # flog.info("Reading file...")
   # add a read_vcf function
   vcf = read_vcf(x)
   mat = vcf$tab
@@ -568,9 +601,9 @@ parse_somatic_vcf.oncotator <- function(x, samp, ref){
   #tab = data.table:::fread(x, data.table = FALSE, header = FALSE, skip = hd_row, sep = "\t", colClasses = "character")
   tab = readr::read_tsv(x, col_names = FALSE, skip = hd_row, col_types = col_classes)
   colnames(tab) = gsub("#chrom", "chrom", hd)
-  #tab = tbl_df(tab)
+  #tab = as_tibble(tab)
   
-  #mat = tbl_df(as.data.frame(mat,  stringsAsFactors = FALSE))
+  #mat = as_tibble(as.data.frame(mat,  stringsAsFactors = FALSE))
   #colnames(mat) = tolower(colnames(mat))
   
   # assume first column is tumor
@@ -595,8 +628,8 @@ parse_somatic_vcf.oncotator <- function(x, samp, ref){
   colsel = !colnames(tab) %in% c("format", samp1, samp2, "info")
   
   message("Assembling data")
-  #mat = tbl_df(cbind(mat[, colsel], tcols, ncols, infocols, funccols))
-  tab = tbl_df(cbind(tab[, colsel], s1cols, s2cols, infocols))
+  #mat = as_tibble(cbind(mat[, colsel], tcols, ncols, infocols, funccols))
+  tab = as_tibble(cbind(tab[, colsel], s1cols, s2cols, infocols))
   
   tab = clean_names(tab)
   return(tab)

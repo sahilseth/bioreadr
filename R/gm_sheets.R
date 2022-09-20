@@ -26,7 +26,7 @@ gm_split_propel_single_fls <- function(x){
                                        index = "([ATGC]*|NoIndex)",
                                        ext = "(.?)"),
                                      strict_format_checking = FALSE) %>% tbl_df()
-  df = mutate(df, oprefix = glue("{proj_samp}_{runid}-{lane}-{index}"))
+  df = dplyr::mutate(df, oprefix = glue("{proj_samp}_{runid}-{lane}-{index}"))
   
   df
 }
@@ -59,31 +59,39 @@ gm_split_cgl_fqs <- function(x){
   df
 }
 
-# IPCT-FC213-MOON0051-Cap1646-6-ID42
-gm_split_ipct_name <- function(x){
+# x="IPCT-FC213-MOON0051-Cap1646-6-ID42"
+gm_split_ipct_name_bak <- function(x){
   
+  library(pacman)
+  p_load(magrittr)
   x = x %>% as.character() %>% basename()
   
   fmt = "{{center}}-{{batch}}-{{project}}-{{samplename}}"
-  
-  df = ultraseq:::split_names_fastq2(x, 
-                                     format = fmt, 
-                                     # regex pattern for each piece
-                                     lst_patterns = list(
-                                       center = "(.?)",
-                                       batch = "(.?)",
-                                       project = "(.?)",
-                                       samplename = "(.*)"),
-                                     strict_format_checking = FALSE) %>% tbl_df()
+  # ultraseq:::
+  df = split_names_fastq2(x, 
+                          format = fmt, 
+                          # regex pattern for each piece
+                          lst_patterns = list(
+                            center = "(.?)",
+                            batch = "(.?)",
+                            project = "(.+)",
+                            samplename = "(.*)"),
+                          strict_format_checking = FALSE) %>% tbl_df()
 
   df
   
-  
 }
 
+gm_split_ipct_name <- function(df, col){
+  
+  library(pacman)
+  p_load(magrittr, tidyr)
+  head(separate)
+  separate(df, col, into = c("center", "batch", "project", "sequencing_id"), 
+                sep = "-", fill = "left", extra = "merge", remove = FALSE)
 
 
-
+}
 
 
 if(FALSE){
@@ -234,59 +242,59 @@ gm_read_tnbc_samplesheet <- function(fl = "~/projects/samplesheets/tnbc/seq_trac
 
 
 
-.get_bam <- function(propel_single_id, runid, verbose = F){
-  runpath1 = "~/.rsrch1/genomic_med/omics/Womens/MS51"
-  runpath2 = "~/.rsrch2/iacs/ngs_runs"
-  runpath3 = "~/.rsrch1/iacs/ngs_runs"
+# .get_bam <- function(propel_single_id, runid, verbose = F){
+#   runpath1 = "~/.rsrch1/genomic_med/omics/Womens/MS51"
+#   runpath2 = "~/.rsrch2/iacs/ngs_runs"
+#   runpath3 = "~/.rsrch1/iacs/ngs_runs"
   
-  bam1 = glue("{runpath1}/bam/{propel_single_id}.bwa_recalibed.bam")
-  bam2 = glue("{runpath2}/{runid}/bams/{propel_single_id}.bwa_recalibed.bam")
-  bam3 = glue("{runpath3}/{runid}/bams/{propel_single_id}.bwa_recalibed.bam")
+#   bam1 = glue("{runpath1}/bam/{propel_single_id}.bwa_recalibed.bam")
+#   bam2 = glue("{runpath2}/{runid}/bams/{propel_single_id}.bwa_recalibed.bam")
+#   bam3 = glue("{runpath3}/{runid}/bams/{propel_single_id}.bwa_recalibed.bam")
   
-  # for rnaseq
-  bam4 = glue("{runpath1}/bam/{propel_single_id}.star_marked.bam")
+#   # for rnaseq
+#   bam4 = glue("{runpath1}/bam/{propel_single_id}.star_marked.bam")
   
-  if(verbose)
-    message(bam1, bam2, bam3)
+#   if(verbose)
+#     message(bam1, bam2, bam3)
   
-  if(file.exists(bam1)){
-    bam = bam1
-  }else if(file.exists(bam2)){
-    bam = bam2
-  }else if(file.exists(bam3)){
-    bam = bam3
-  }else if(file.exists(bam4)){
-    bam = bam4
-  }else{
-    bam = ""
-  }
+#   if(file.exists(bam1)){
+#     bam = bam1
+#   }else if(file.exists(bam2)){
+#     bam = bam2
+#   }else if(file.exists(bam3)){
+#     bam = bam3
+#   }else if(file.exists(bam4)){
+#     bam = bam4
+#   }else{
+#     bam = ""
+#   }
   
-  as.character(bam)
-}
+#   as.character(bam)
+# }
 
 
-# lets start fetching files
-fetch_fls <- function(df_samp, 
-                      col_oprefix = "oprefix", 
-                      col_runid = "runid"){
+# # lets start fetching files
+# fetch_fls <- function(df_samp, 
+#                       col_oprefix = "oprefix", 
+#                       col_runid = "runid"){
   
-  df_samp = data.frame(df_samp, stringsAsFactors = F)
-  # for each file
-  tmp = lapply(1:nrow(df_samp), function(i){
+#   df_samp = data.frame(df_samp, stringsAsFactors = F)
+#   # for each file
+#   tmp = lapply(1:nrow(df_samp), function(i){
     
-    propel_single_id = df_samp[, col_oprefix][i]
-    runid = df_samp[, col_runid][i]
-    runid = gsub("-", "_", runid)
+#     propel_single_id = df_samp[, col_oprefix][i]
+#     runid = df_samp[, col_runid][i]
+#     runid = gsub("-", "_", runid)
     
-    bam = .get_bam(propel_single_id, runid)
-    #         mutect = .get_mutect(propel_single_id, runid)
-    #         exomecn = .get_exomecn(propel_single_id, runid)
+#     bam = .get_bam(propel_single_id, runid)
+#     #         mutect = .get_mutect(propel_single_id, runid)
+#     #         exomecn = .get_exomecn(propel_single_id, runid)
     
-    data.frame(bam = bam)
+#     data.frame(bam = bam)
     
-  }) %>% bind_rows()
-  bind_cols(df_samp, tmp)
-}
+#   }) %>% bind_rows()
+#   bind_cols(df_samp, tmp)
+# }
 
 
 # using this: 

@@ -560,14 +560,16 @@ recode_variant_classification <- function(x){
     x %in% c("nonsynonymous SNV", "nonsynonymous", "Missense_Mutation", "NON_SYNONYMOUS_CODING", "missense_variant") ~ "Missense_Mutation",
     
     x %in% c("frameshift deletion", "Frame_Shift_Del") ~ "Frame_Shift_Del",
-    
     x %in% c("nonframeshift deletion", "In_Frame_Del") ~ "In_Frame_Del",
     
+    x %in% c("frameshift insertion", "frameshift substitution") ~ "Frame_Shift_Ins",
+    x %in% c("In_Frame_Ins") ~ "In_Frame_Ins",
+    
+    # non-sense
     x %in% c("stoploss SNV", "stoploss", "Nonstop_Mutation", "stop_lost") ~ "Nonstop_Mutation",
     x %in% c("stopgain SNV", "stopgain", "STOP_GAINED", "stop_gained") ~ "Nonsense_Mutation",
 
-    x %in% c("In_Frame_Ins", "frameshift insertion") ~ "In_Frame_Ins",
-
+    # splicing
     x %in% c("splicing", "splicing*", "Splice_Site", "Splice_Region", "splice_region_variant", "splice_acceptor_variant", "splice_donor_variant") ~ "Splice_Region",
   
     x %in% c("start_lost") ~ "Translation_Start_Site")

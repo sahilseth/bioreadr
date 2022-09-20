@@ -16,8 +16,10 @@ bam_set <- function(bam,
                     outprefix, 
                     ref_fasta, 
                     interval_split,
-                    split_by = c("none", "chr_len", "interval_split", "chr")){
+                    split_by = c("none", "chr_len", "interval_split", "chr", "interval_split_bed")){
   
+  flog.debug(glue("running bam set on: {bam}"))
+
   split_by = match.arg(split_by)
   obj = list()
   
@@ -54,6 +56,11 @@ bam_set <- function(bam,
   }else if(split_by == "interval_split"){
     intervals = list.files(interval_split, pattern = ".interval_list", full.names = T)
     obj$intervals = paste0(" -L ", intervals)
+    obj$outprefix_interval = sprintf("%s_%03d", obj$outprefix, 1:length(intervals))
+
+  }else if(split_by == "interval_split_bed"){
+    intervals = list.files(interval_split, pattern = ".bed", full.names = T)
+    obj$intervals = paste0(" -l ", intervals)
     obj$outprefix_interval = sprintf("%s_%03d", obj$outprefix, 1:length(intervals))
 
   }else if(split_by == "chr"){

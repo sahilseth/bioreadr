@@ -143,7 +143,6 @@
 #' @param mutect2_mem 
 #' @param mutect2_opts 
 #' @param mutect2_create_bam_out 
-#' @param pon_m2_vcf 
 #' @param germline_vcf 
 #' @param germline_biallelic_vcf 
 #' @param interval_split 
@@ -196,6 +195,7 @@ mutect2.gatk4.1.2.0 <- function(
   mutect2_create_bam_out = opts_flow$get('mutect2_create_bam_out'),
   mutect2_pon_vcf = opts_flow$get("mutect2_pon_vcf"),
   mutect2_merge_stats_exe = opts_flow$get("mutect2_merge_stats_exe"),
+  mutect2_dir = pipe_str$mutect2$dir,
   
   germline_vcf = opts_flow$get('germline_variants_vcf'),
   # for contamination
@@ -210,159 +210,196 @@ mutect2.gatk4.1.2.0 <- function(
   
   # expect ALL non null args
   check_args(ignore = "mutect2_pon_vcf")
+  # pipename = match.call()[[1]]
+  flog.debug(paste0("Generating a mutect2 flowmat for sample: ", samplename))
   
   # check generic columns
   trk = metadata_for_mutect1(trk)
-  expect_columns(trk, "outprefix")
-  if(variant_calling_mode == "matched")
-    expect_columns(trk, "outprefix_paired")
-  
+  expect_columns(trk, c("outprefix", "outprefix_paired"))
+  # ** prep files ----------
+  trk %<>% 
+    mutate(mutect2_outprefix = file.path(mutect2_dir, outprefix), 
+           mutect2_outprefix_paired = file.path(mutect2_dir, outprefix_paired),
+           mutect2_vcf = paste0(mutect2_outprefix_paired, ".vcf.gz"))
+
   trk_tum = filter(trk, normal == "NO")
   trk_norm = filter(trk, normal == "YES")
   
   # for now this will ONLY work for single tumor sample
   # this maybe needs to be a loop!
   i=1
-  tumor_bam = trk_tum$bam[i]
-  normal_bam = trk_norm$bam[1] # assuming a SINGLE normal!!
-  tumor_name = trk_tum$name[i]
-  normal_name = trk_norm$name[1]
-  outprefix = trk_tum$outprefix_paired[i]
-  
-  bamset = bam_set(bam = tumor_bam, 
-                   outprefix = outprefix,
-                   ref_fasta = ref_fasta, 
-                   interval_split = interval_split,
-                   split_by = "interval_split")
-  
-  # pipename = match.call()[[1]]
-  flog.debug(paste0("Generating a mutect2 flowmat for sample: ", samplename))
+  tmp = lapply(1:nrow(trk_tum), function(i){
+    tumor_bam = trk_tum$bam[i]
+    normal_bam = trk_norm$bam[1] # assuming a SINGLE normal!!
+    tumor_name = trk_tum$name[i]
+    normal_name = trk_norm$name[1]
+    outprefix = trk_tum$mutect2_outprefix_paired[i]
+    
+    bamset = bam_set(bam = tumor_bam, 
+                    outprefix = outprefix,
+                    ref_fasta = ref_fasta, 
+                    interval_split = interval_split,
+                    split_by = "interval_split")
+    
 
-  # mutect2 ---------
-  #mutect_opts = "--artifact_detection_mode -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS -L $regions_bed_fl"
-  mutect_vcfs = paste0(bamset$outprefix_interval, ".mutect.vcf")
-  mutect_f1r2s = paste0(bamset$outprefix_interval, ".f1r2.tar.gz")
-  # -bamout {mutect_bams} 
-  gatk_intervals = bamset$intervals
-  cmd_mutect <- glue("tname=$({gatk4_exe} GetSampleName -I {tumor_bam} -O /dev/stdout 2> /dev/null); ",
-                     "nname=$({gatk4_exe} GetSampleName -I {normal_bam} -O /dev/stdout 2> /dev/null); ",
-                     "{gatk4_exe} --java-options '-Xmx{mutect2_mem}g -XX:+UseParallelGC -XX:ParallelGCThreads={mutect2_cpu}' ",
-                     "Mutect2 -R {ref_fasta} -I {tumor_bam} -I {normal_bam} ",
-                     "-tumor $tname -normal $nname ",
-                     "-pon {mutect2_pon_vcf} ",
-                     
-                     # ALL these have been added to mutect2_opts
-                     # this is critical for next filter steps
-                     # "--f1r2-tar-gz f1r2.tar.gz ",
-                     # this is required for the new learnorientation model
-                     # need brca1/2 variants, so emit germline ALSO, forcefully
-                     # https://support.bioconductor.org/p/107739/,
-                     # "--genotype-germline-sites ",
-                     # "-A ReferenceBases ",
-                     "--f1r2-tar-gz {mutect_f1r2s} ",
-                     
-                     "--germline-resource {germline_vcf} ",
-                     "--native-pair-hmm-threads {mutect2_cpu} ",
-                     "-O {mutect_vcfs} {mutect2_opts} {gatk_intervals}")
-  
-  # cmd_mutect[17]
-  # gatk --java-options "-Xmx2g" Mutect2 
-  # -R hg38/Homo_sapiens_assembly38.fasta \
-  # -I tumor.bam -I normal.bam  -tumor HCC1143_tumor  -normal HCC1143_normal \
-  # -pon resources/chr17_pon.vcf.gz \
-  # --germline-resource resources/chr17_af-only-gnomad_grch38.vcf.gz \
-  # --af-of-alleles-not-in-resource 0.0000025 --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
-  # -L chr17plus.interval_list -O 1_somatic_m2.vcf.gz -bamout 2_tumor_normal_m2.bam 
-  
-  # ** merge VCFs ---------
-  mutect_vcf = paste0(outprefix, ".vcf.gz")
-  mutect_vcfs_i = paste0(mutect_vcfs, collapse = " -I ")
-  # GatherVcfs
-  # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/picard_vcf_GatherVcfs.php
-  # gather should be faster
-  mutect2dir = basename(outprefix)
-  cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} GatherVcfs -I {mutect_vcfs_i} -O {mutect_vcf}; ", 
-                      "bash {mutect2_merge_stats_exe} '{mutect2dir}/*vcf.gz.stats' {mutect_vcf}.stats;",
-                      "{gatk4_exe} IndexFeatureFile -I {mutect_vcf}")
+    # mutect2 matched ---------
+    #mutect_opts = "--artifact_detection_mode -rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS -L $regions_bed_fl"
+    mutect_vcfs = paste0(bamset$outprefix_interval, ".mutect.vcf.gz")
+    mutect_f1r2s = paste0(bamset$outprefix_interval, ".f1r2.tar.gz")
+    # -bamout {mutect_bams} 
+    gatk_intervals = bamset$intervals
+    if(variant_calling_mode == "matched")
+      cmd_mutect <- glue("tname=$({gatk4_exe} GetSampleName -I {tumor_bam} -O /dev/stdout 2> /dev/null); ",
+                      "nname=$({gatk4_exe} GetSampleName -I {normal_bam} -O /dev/stdout 2> /dev/null); ",
+                      "{gatk4_exe} --java-options '-Xmx{mutect2_mem}g -XX:+UseParallelGC -XX:ParallelGCThreads={mutect2_cpu}' ",
+                      "Mutect2 -R {ref_fasta} -I {tumor_bam} -I {normal_bam} ",
+                      "-tumor $tname -normal $nname ",
+                      "-pon {mutect2_pon_vcf} ",
+                      
+                      # ALL these have been added to mutect2_opts
+                      # this is critical for next filter steps
+                      # "--f1r2-tar-gz f1r2.tar.gz ",
+                      # this is required for the new learnorientation model
+                      # need brca1/2 variants, so emit germline ALSO, forcefully
+                      # https://support.bioconductor.org/p/107739/,
+                      # "--genotype-germline-sites ",
+                      # "-A ReferenceBases ",
+                      "--f1r2-tar-gz {mutect_f1r2s} ",
+                      
+                      "--germline-resource {germline_vcf} ",
+                      "--native-pair-hmm-threads {mutect2_cpu} ",
+                      "-O {mutect_vcfs} {mutect2_opts} {gatk_intervals}")
+    # mutect2 pon ---------
+    if(variant_calling_mode == "pon")
+      cmd_mutect <- glue("tname=$({gatk4_exe} GetSampleName -I {tumor_bam} -O /dev/stdout 2> /dev/null); ",
+                        "{gatk4_exe} --java-options '-Xmx{mutect2_mem}g -XX:+UseParallelGC -XX:ParallelGCThreads={mutect2_cpu}' ",
+                        "Mutect2 -R {ref_fasta} -I {tumor_bam} ",
+                        "-tumor $tname ",
+                        "-pon {mutect2_pon_vcf} ",
+                        
+                        # ALL these have been added to mutect2_opts
+                        # this is critical for next filter steps
+                        # "--f1r2-tar-gz f1r2.tar.gz ",
+                        # this is required for the new learnorientation model
+                        # need brca1/2 variants, so emit germline ALSO, forcefully
+                        # https://support.bioconductor.org/p/107739/,
+                        # "--genotype-germline-sites ",
+                        # "-A ReferenceBases ",
+                        "--f1r2-tar-gz {mutect_f1r2s} ",
+                        
+                        "--germline-resource {germline_vcf} ",
+                        "--native-pair-hmm-threads {mutect2_cpu} ",
+                        "-O {mutect_vcfs} {mutect2_opts} {gatk_intervals}")
+    
+    # cmd_mutect[17]
+    # gatk --java-options "-Xmx2g" Mutect2 
+    # -R hg38/Homo_sapiens_assembly38.fasta \
+    # -I tumor.bam -I normal.bam  -tumor HCC1143_tumor  -normal HCC1143_normal \
+    # -pon resources/chr17_pon.vcf.gz \
+    # --germline-resource resources/chr17_af-only-gnomad_grch38.vcf.gz \
+    # --af-of-alleles-not-in-resource 0.0000025 --disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+    # -L chr17plus.interval_list -O 1_somatic_m2.vcf.gz -bamout 2_tumor_normal_m2.bam 
+    
+    # ** merge VCFs ---------
+    mutect2_vcf = paste0(outprefix, ".vcf.gz")
+    mutect_vcfs_i = paste0(mutect_vcfs, collapse = " -I ")
+    # GatherVcfs
+    # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/picard_vcf_GatherVcfs.php
+    # gather should be faster
+    mutect2dir = basename(outprefix)
+    cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} GatherVcfs -I {mutect_vcfs_i} -O {mutect2_vcf}; ", 
+                        "bash {mutect2_merge_stats_exe} '{outprefix}_*.mutect.vcf.gz.stats' {mutect2_vcf}.stats;",
+                        "{gatk4_exe} IndexFeatureFile -I {mutect2_vcf}")
 
-  # we need two arguments, pattern and output file filename for the stats
-  
-  # this will be critical in ALL validation (in IGV)
-  if(mutect2_create_bam_out){
-    mutect_bams = paste0(bamset$outprefix_interval, ".mutect.bam")
-    cmd_mutect = glue("{cmd_mutect} -bamout {mutect_bams}")
-    # ** gather bams ----
-    mutect_bams_i = paste0(mutect_bams, collapse = " -I ");
-    mutect_bam_o = paste0(outprefix, "_mutect.bam")
-    cmd_mutect_gather_bams <- glue("{gatk4_exe} --java-options {java_mem} GatherBamFiles ",
-                                   "-I {mutect_bams_i} -O {mutect_bam_o} --CREATE_INDEX true --CREATE_MD5_FILE true")
-    cmd_mergevcf = c(cmd_mergevcf, cmd_mutect_gather_bams)
-  }
-  
-  
-  # ** contamination/pipelup;f1 ---------
-  # best to use a set of biallelic calls
-  # (maybe only chr1 is enough)
-  # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_walkers_contamination_CalculateContamination.php
-  
-  
-  # This tool borrows from ContEst by Cibulskis et al the idea of estimating contamination from ref reads at hom alt sites. 
-  # However, ContEst uses a probabilistic model that assumes a diploid genotype with no copy number variation and independent 
-  # contaminating reads. That is, ContEst assumes that each contaminating read is drawn randomly and independently from a different human. 
-  # This tool uses a simpler estimate of contamination that relaxes these assumptions. 
-  # In particular, it works in the presence of copy number variations and with an arbitrary number of contaminating samples. 
-  # In addition, this tool is designed to work well with no matched normal data. 
-  # However, one can run GetPileupSummaries on a matched normal bam file and input the result to this tool.
-  tumor_pileup = glue("{tumor_name}_pileup.table")
-  normal_pileup = glue("{normal_name}_pileup.table")
-  tumor_cont_tab = glue("{tumor_name}_contamination.table")
-  #normal_cont_tab = glue("{normal_bam_prefix}_contamination.table")
-  
-  # the variants are in chr 1 only
-  # 1 is larger, hopefully it would work well
-  cmd_pileup1 = glue("{gatk4_exe} GetPileupSummaries -I {tumor_bam} -V {germline_biallelic_vcf} -O {tumor_pileup} -L 1")
-  cmd_pileup2 = glue("{gatk4_exe} GetPileupSummaries -I {normal_bam} -V {germline_biallelic_vcf} -O {normal_pileup} -L 1")
-  cmd_pileup = c(cmd_pileup1, cmd_pileup2)
-  #' This produces a six-column table as shown. The alt_count is the count of reads that support the ALT allele in the germline resource. 
-  #' The allele_frequency corresponds to that given in the germline resource. Counts for other_alt_count refer to reads that support all other alleles.
-  cmd_cont = glue("{gatk4_exe} CalculateContamination -I {tumor_pileup} -matched {normal_pileup} ",
-                  "-O {tumor_cont_tab}")
-  cmd_cont
-  
-  mutect_filt1_vcf = paste0(outprefix, "_f1.vcf.gz")
-  mutect_filt2_vcf = paste0(outprefix, "_f2.vcf.gz")
-  cmd_filter1 = glue("{gatk4_exe} FilterMutectCalls -V {mutect_vcf} -R {ref_fasta} --contamination-table {tumor_cont_tab} -O {mutect_filt1_vcf}")
-  
-  # https://gatkforums.broadinstitute.org/gatk/discussion/comment/57611
-  # ** LearnReadOrientationModel ---------
-  mutect_f1r2_i = paste0(mutect_f1r2s, collapse = " -I ")
-  mutect_f1r2 = paste0(outprefix, ".read-orientation-model.tar.gz")
-  cmd_learnf1r2 = glue("{gatk4_exe} LearnReadOrientationModel -I {mutect_f1r2_i} -O {mutect_f1r2}")
-  # need to start with original file, this step needs the calls.vcf.stats file
-  cmd_filter2 = glue("{gatk4_exe} FilterMutectCalls -V {mutect_vcf} -R {ref_fasta} ",
-                     "--contamination-table {tumor_cont_tab} --ob-priors {mutect_f1r2} -O {mutect_filt2_vcf}")
+    # we need two arguments, pattern and output file filename for the stats
+    
+    # this will be critical in ALL validation (in IGV)
+    if(mutect2_create_bam_out){
+      mutect_bams = paste0(bamset$outprefix_interval, ".mutect.bam")
+      cmd_mutect = glue("{cmd_mutect} -bamout {mutect_bams}")
+      # ** gather bams ----
+      mutect_bams_i = paste0(mutect_bams, collapse = " -I ");
+      mutect_bam_o = paste0(outprefix, "_mutect.bam")
+      cmd_mutect_gather_bams <- glue("{gatk4_exe} --java-options {java_mem} GatherBamFiles ",
+                                    "-I {mutect_bams_i} -O {mutect_bam_o} --CREATE_INDEX true --CREATE_MD5_FILE true")
+      cmd_mergevcf = c(cmd_mergevcf, cmd_mutect_gather_bams)
+    }
+    
+    
+    # ** contamination/pipelup;f1 ---------
+    # best to use a set of biallelic calls
+    # (maybe only chr1 is enough)
+    # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_hellbender_tools_walkers_contamination_CalculateContamination.php
+    
+    
+    # This tool borrows from ContEst by Cibulskis et al the idea of estimating contamination from ref reads at hom alt sites. 
+    # However, ContEst uses a probabilistic model that assumes a diploid genotype with no copy number variation and independent 
+    # contaminating reads. That is, ContEst assumes that each contaminating read is drawn randomly and independently from a different human. 
+    # This tool uses a simpler estimate of contamination that relaxes these assumptions. 
+    # In particular, it works in the presence of copy number variations and with an arbitrary number of contaminating samples. 
+    # In addition, this tool is designed to work well with no matched normal data. 
+    # However, one can run GetPileupSummaries on a matched normal bam file and input the result to this tool.
+    tumor_pileup = glue("{tumor_name}_pileup.table")
+    normal_pileup = glue("{normal_name}_pileup.table")
+    tumor_cont_tab = glue("{tumor_name}_contamination.table")
+    #normal_cont_tab = glue("{normal_bam_prefix}_contamination.table")
+    
+    # the variants are in chr 1 only, these are enough to estimate normal contamination
+    # 1 is larger, hopefully it would work well
+    cmd_pileup1 = glue("{gatk4_exe} GetPileupSummaries -I {tumor_bam} -V {germline_biallelic_vcf} -O {tumor_pileup} -L 1")
+    cmd_pileup2 = glue("{gatk4_exe} GetPileupSummaries -I {normal_bam} -V {germline_biallelic_vcf} -O {normal_pileup} -L 1")
+    if(variant_calling_mode == "pon")
+      cmd_pileup = cmd_pileup1
+    if(variant_calling_mode == "matched")
+      cmd_pileup = c(cmd_pileup1, cmd_pileup2)
+    #' This produces a six-column table as shown. The alt_count is the count of reads that support the ALT allele in the germline resource. 
+    #' The allele_frequency corresponds to that given in the germline resource. Counts for other_alt_count refer to reads that support all other alleles.
+    cmd_cont = glue("{gatk4_exe} CalculateContamination -I {tumor_pileup} -matched {normal_pileup} ",
+                    "-O {tumor_cont_tab}")
 
-  cmds <- list(mutect2.splt = cmd_mutect, 
-               mutect2.mrg = cmd_mergevcf,
-               mutect2.mrg = cmd_pileup,
-               mutect2.mrg = cmd_cont,
-               mutect2.mrg = cmd_filter1,
-               mutect2.mrg = cmd_learnf1r2,
-               mutect2.mrg = cmd_filter2)
-  # mutect_gather_bams = cmd_mutect_gather_bams
-  
-  flowmat = to_flowmat(cmds, samplename = samplename) %>% 
-    mutate(cmd = as.character(cmd))
-  
-  ret = list(flowmat=flowmat, 
-             outfiles = mutect_filt2_vcf, 
-             outfiles2 = c(mutect_filt2_vcf = mutect_filt2_vcf, 
-                           mutect_filt1_vcf = mutect_filt1_vcf,
-                           tumor_cont_tab = tumor_cont_tab,
-                           #mutect_bam = mutect_bam_o,
-                           mutect_vcf = mutect_vcf))
-  ret
-  
+    # https://gatk.broadinstitute.org/hc/en-us/community/posts/360061348011-Contamination-calculated-with-and-without-matched-normal-differ-from-each-other
+    if(variant_calling_mode == "pon")
+      cmd_cont = glue("{gatk4_exe} CalculateContamination -I {tumor_pileup} -O {tumor_cont_tab}")
+    
+    mutect2_filt1_vcf = paste0(outprefix, "_f1.vcf.gz")
+    mutect2_filt2_vcf = paste0(outprefix, "_f2.vcf.gz")
+    cmd_filter1 = glue("{gatk4_exe} FilterMutectCalls -V {mutect2_vcf} -R {ref_fasta} --contamination-table {tumor_cont_tab} -O {mutect2_filt1_vcf}")
+    
+    # https://gatkforums.broadinstitute.org/gatk/discussion/comment/57611
+    # ** LearnReadOrientationModel ---------
+    mutect_f1r2_i = paste0(mutect_f1r2s, collapse = " -I ")
+    mutect_f1r2 = paste0(outprefix, ".read-orientation-model.tar.gz")
+    cmd_learnf1r2 = glue("{gatk4_exe} LearnReadOrientationModel -I {mutect_f1r2_i} -O {mutect_f1r2}")
+    # need to start with original file, this step needs the calls.vcf.stats file
+    cmd_filter2 = glue("{gatk4_exe} FilterMutectCalls -V {mutect2_vcf} -R {ref_fasta} ",
+                      "--contamination-table {tumor_cont_tab} --ob-priors {mutect_f1r2} -O {mutect2_filt2_vcf}")
+
+    cmds <- list(mutect2.splt = cmd_mutect, 
+                mutect2.mrg = cmd_mergevcf,
+                mutect2.mrg = cmd_pileup,
+                mutect2.mrg = cmd_cont,
+                mutect2.mrg = cmd_filter1,
+                mutect2.mrg = cmd_learnf1r2,
+                mutect2.mrg = cmd_filter2)
+    # mutect_gather_bams = cmd_mutect_gather_bams
+    
+    flowmat = to_flowmat(cmds, samplename = samplename) %>% 
+      mutate(cmd = as.character(cmd))
+    
+    ret = list(flowmat=flowmat, 
+              outfiles = mutect2_filt2_vcf, 
+              outfiles2 = c(mutect2_filt2_vcf = mutect2_filt2_vcf, 
+                            mutect2_filt1_vcf = mutect2_filt1_vcf,
+                            tumor_cont_tab = tumor_cont_tab,
+                            #mutect_bam = mutect_bam_o,
+                            mutect2_vcf = mutect2_vcf))
+    ret
+  })
+  lst = purrr::transpose(tmp)
+  lst$flowmat %<>% bind_rows()
+  lst$trk = trk
+
+  return(lst)
 }
 
 # --f1r2-tar-gz f1r2.tar.gz

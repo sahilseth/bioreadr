@@ -20,8 +20,6 @@ if(FALSE){
   
   gseid = "GSE87455"
   
-  
-  
 }
 
 gse_summary <- function(gseid){

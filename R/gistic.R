@@ -56,9 +56,7 @@ run_gistic <- function(input, output){
     # ## NOTE: change the line below if you have installed the Matlab MCR in an alternative location
     # MCR_ROOT=/scratch/genomic_med/apps/Matlab_Complier_runTime
     # MCR_VER=v83
-
     # echo Setting Matlab MCR root to $MCR_ROOT
-
     # ## set up environment variables
     # LD_LIBRARY_PATH=$MCR_ROOT/$MCR_VER/runtime/glnxa64:$LD_LIBRARY_PATH
     # LD_LIBRARY_PATH=$MCR_ROOT/$MCR_VER/bin/glnxa64:$LD_LIBRARY_PATH
@@ -89,13 +87,20 @@ read_gistic <- function(output){
                     gisticAmpGenesFile = glue("{output}/amp_genes.conf_90.txt"), 
                     gisticDelGenesFile = glue("{output}/del_genes.conf_90.txt"), 
                     gisticScoresFile = glue("{output}/scores.gistic"))
-
+  
+    # remove portions
+    lst@gis.scores %<>% tidylog::filter(Start_Position < End_Position)
+    flog.info("chromplot")
     pdf(glue("{output}/p_chromplot.pdf"), width = 20)
+    # undebug(gisticChromPlot)
     gisticChromPlot(gistic = lst, markBands = "all")
     dev.off()
 
     pdf(glue("{output}/p_bubble.pdf"), width = 8, height = 8)
-    gisticBubblePlot(gistic = lst)
+    # undebug(gisticBubblePlot)
+    # undebug(maftools:::bubble_plot)
+    # if plotly is loaded, it messes this bu
+    maftools::gisticBubblePlot(gistic = lst)
     dev.off()
 
     pdf(glue("{output}/p_onco.pdf"), width = 20, height = 20)

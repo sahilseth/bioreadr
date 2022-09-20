@@ -3,7 +3,7 @@
 # instalation:
 # https://bitbucket.org/aroth85/pyclone/wiki/Installation
 # module load conda_/2.7
-# conda create --name pyclone #python=2
+# conda create --name pyclone_py27 python=2.7
 # source activate pyclone
 # # now install it
 # conda install pyclone -c aroth85
@@ -46,8 +46,12 @@
 # 
 
 
+# install pyclone-vi
+# source activate pyclone-vi
+# pip install git+https://github.com/Roth-Lab/pyclone-vi.git
 
-# load ---------
+
+
 # library(pacman)
 # p_load(tidyverse, janitor)
 # p_load(GenomicRanges)
@@ -204,6 +208,25 @@ facets_segfl_fitfl <- function(seg_fl){
   
 }
 
+# **** purecn -----
+# segfl = "/rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/ss_cl_het_gb/purecn_v2/185_011/IPCT-S4012-MOON0051-Cap2515-4-HTID331___matched.csv"
+# segfl = "/rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/ss_cl_het_gb/purecn_v2/185_011/IPCT-S4012-MOON0051-Cap2515-4-HTID331___matched.rds"
+# segfl = "/rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/ss_cl_het_merged/cnv/purecn_v2/seg_mrg.rds"
+# Rscript ~/Dropbox/public/flowr/my.ultraseq/pipelines/dnaseq/purecn/PureCN_v2.R --out purecn2/IPCT-S4012-MOON0051-Cap2515-4-HTID331___matched --sampleid IPCT-S4012-MOON0051-Cap2515-4-HTID331 --tumor /rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/purecn/coverage/IPCT-S4012-MOON0051-Cap2515-4-HTID331_ngs-pipe-3-TCCGGAGCAGAA.bwa_recalibed_coverage_loess.txt.gz --normaldb /rsrch3/home/iacs/sseth/ref/human/b37/common_normal/ms51_v1/purecn_pon/pon_db/normalDB_seqez_v3_hg19.rds --mappingbiasfile /rsrch3/home/iacs/sseth/ref/human/b37/common_normal/ms51_v1/purecn_pon/pon_db/mapping_bias_seqez_v3_hg19.rds --vcf mutect2/IPCT-S4012-MOON0051-Cap2515-4-HTID331___matched.vcf.gz --outvcf --cosmic.vcf.file /rsrch3/home/iacs/sseth/ref/human/b37/annotations/cosmic/v88/CosmicCodingMuts.vcf.gz --intervals /rsrch3/home/iacs/sseth/ref/az_ref_beds/ss_downloads/SeqCapEZ_Exome_v3.0_Design_Annotation_files/purecn/SeqCap_EZ_Exome_v3_hg19_capture_targets_nochr_purecnv_interval.txt --snpblacklist /rsrch3/home/iacs/sseth/ref/human/b37/annotations/purecn/hg19_simple_repeats.bed.gz --parallel --cores 24 --postoptimize --seed 123 --minaf 0.03 --genome hg19 --funsegmentation PSCBS --centromere_seq_style NCBI   --additionaltumors /rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/purecn/coverage/IPCT-S4012-MOON0051-Cap2516-4-HTID343_ngs-pipe-3-GATATCTAATTT.bwa_recalibed_coverage_loess.txt.gz
+# pureCN was run with information from multiple tumors, where available
+purecn_read.segfl <- function(segfl){
+  seg = read_tsv(segfl)
+  seg = read_rds(segfl)
+  seg$results %>% length()
+  x1 = seg$results[[1]]$seg
+  x2 = seg$results[[5]]$seg
+  dim(x1);dim(x2)
+  table(x1$C, x2$C)
+  
+  res <- PureCN::readCurationFile(segfl)
+  
+}
+
 # ** mut readers ---------
 # **** mutect ---------
 
@@ -250,9 +273,11 @@ mutect_read.bamreadcount <- function(mutfl){
 #' @export
 pyclone_prep_input <- function(segfl, mutfl, 
                                lst_bams = list(),
-                               segfl_type = c("sequenza", "facets"), 
-                               mutfl_type = c("mutect_ann", "mutect_bamreadcount"), 
-                               outfile){
+                               segfl_type = c("sequenza", "facets", "purecn"), 
+                               mutfl_type = c("mutect_ann", "mutect_bamreadcount", "ssm_bamreadcount"), 
+                               outfile, 
+                               purity, 
+                               ploidy){
   
   check_args()
   segfl_type = match.arg(segfl_type)
@@ -263,6 +288,10 @@ pyclone_prep_input <- function(segfl, mutfl,
     gr_seg = seqz_read(segfl)$gr_seg
   if(segfl_type == "facets")
     gr_seg = facets_read.segfl(segfl)$gr_seg
+  if(segfl_type == "purecn"){
+     source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/purecn.R')
+     gr_seg = to_gr_seg.purecn(segfl)$gr_seg
+  }
   
   message("reading mut file...")
   #mut<- read_tsv(mutfl, header =T, stringsAsFactors = F, sep = "\t")
@@ -270,8 +299,17 @@ pyclone_prep_input <- function(segfl, mutfl,
     gr_mut <- mutect_read.annovar(mutfl)$gr_mut
   if(mutfl_type == "mutect_bamreadcount")
     gr_mut <- mutect_read.bamreadcount(mutfl)$gr_mut
+  if (mutfl_type == "ssm_bamreadcount") {
+    gr_mut <- mutect_read.bamreadcount(mutfl)$gr_mut
+  }
+  # df_muttmp = read_tsv(mutfl)
+  # filter(df_muttmp, start == 86253434) %>% data.frame()
+  # df_bamrd = read_rds("ssm/df_bamreadcount.rds")
+  # filter(df_bamrd, start == 86253434) %>% data.frame()
   
   # convert X Y to 23; TODO
+  # combine somatic mutations and CNV
+  # in case there are two mutations at the exact same location
   message("findOverlaps...")
   mut_seg_hits <- findOverlaps(gr_mut, gr_seg)
   
@@ -283,18 +321,24 @@ pyclone_prep_input <- function(segfl, mutfl,
                     mutation_id = paste("chr", seqnames, start, sep = ":"), 
                     # not including patient ID
                     #ref_counts = t_ref_AD, var_counts = t_alt_AD,
-                    normal_cn = 2, variant_case = tumor_name, 
+                    normal_cn = 2, 
+                    variant_case = tumor_name, 
+                    sample_id = tumor_name,
                     #variant_freq = t_alt_AD/(t_ref_AD + t_alt_AD),
                     variant_freq = var_counts/(ref_counts + var_counts),
                     genotype = paste(ref_allele, alt_allele, sep = ">")) %>%
     dplyr::select(mutation_id, ref_counts, var_counts, normal_cn, minor_cn, major_cn, 
-                  variant_case, variant_freq, genotype)
+                  variant_case, variant_freq, genotype, sample_id)
   head(df_merge)
   
   # write out?'
   # pyc_inp = 
+  # why remove cases with complete deletions??
+  # well if we have a mutation, major_cn CANT be 0
+  # if its 0, then there cant be a mutation detected there
   df_merge[complete.cases(df_merge), ] %>% 
-    filter(major_cn > 0) %>% 
+    tidylog::filter(major_cn > 0) %>% 
+    mutate(tumour_content = round(purity, 2))
     write_tsv(outfile)
   
   
@@ -364,7 +408,7 @@ pyclone.run_analysis_pipeline <- function(df,
   mutfls = paste(df$pyclone_inp_tsv, collapse = " ")
   tum_contents = paste(round(df$purity, 2), collapse = " ")
   cmd_pyc = glue("{pyclone_exe} run_analysis_pipeline --in_files {mutfls} --working_dir {odir} --tumour_contents {tum_contents} {pyclone_params}")
-  #system(cmd_pyc)
+  system(cmd_pyc)
   
   # parse loci
   #pyclone_parse_cluster(df, odir)
@@ -379,6 +423,7 @@ pyclone.run_analysis_pipeline <- function(df,
   return(list(cmd = cmd_pyc))
   
 }
+
 
 
 # df = df_pyclone_inp
@@ -595,28 +640,33 @@ pyclone_plots <- function(pyclone_path){
 #' @export
 #' 
 #' @import GenomicRanges
-pyclone_pipe_r <- function(trk, 
+pyclone_pipe_r <- function(trk,
+                           pyclone_outprefix = "pyclone",
                            segfl_type = "facets", 
                            mutfl_type = "mutect_bamreadcount",
                            pyclone_params = "--num_iters 10000 --density pyclone_beta_binomial --prior parental_copy_number --burnin 2500",
                            force_redo = FALSE){
   
   pacman::p_load(GenomicRanges)
+  # should skip this ideally
+  source("~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/pyclone.R")
   
   #patid = paste(df$trialid[1], "_", df$path_patient_id[1], sep = "")
-  patid = trk$path_patient_id[1]
+  # change to individual
+  patid = trk$individual[1]
   message(patid)
-  
-  i = 2
+
+  i = 1
   # read each segment file
+  flog.info("getting df_pyclone_inp ready")
   df_pyclone_inp = lapply(1:nrow(trk), function(i){
-    sampid = trk$NAME[i]
+    sampid = trk$name[i]
     # if(is.null(trk$lbl))
     #   samplbl = sampid
     # else
     #   samplbl = trk$lbl[i]
     
-    outfile = glue("{sampid}_pyclone_inp.tsv");outfile
+    outfile = glue("{pyclone_outprefix}/{sampid}_pyclone_inp.tsv");outfile
     
     if(segfl_type == "facets"){
       segfl = trk$CNV[i]
@@ -635,18 +685,49 @@ pyclone_pipe_r <- function(trk,
       }
       
     }
+    
+    if(segfl_type == "purecn"){
+      segfl = glue("purecn2/{trk$name[i]}___matched_dnacopy.seg")
+      file.exists(segfl)
+
+      # segfl = trk$CNV[i]
+      fitfl = glue("purecn2/{trk$name[i]}___matched.csv")
+      fit = read_csv(fitfl) %>% janitor::clean_names()
+      purity = fit$purity
+      ploidy = fit$ploidy
+      
+      # force purity to 0, if its NA
+      if(is.na(purity)){
+        message("purity is NA ", appendLF = F)
+        if(!is.na(ploidy)){
+          message("since ploidy is not NA, assuming purity to be 0")
+          purity = 0
+        }
+      }
+      
+    }
+    
     if(mutfl_type == "mutect_bamreadcount")
       mutfl = trk$MUT_RECALL_F1[i]
-    
-    source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/pyclone.R')
+
+    if (mutfl_type == "ssm_bamreadcount") {
+      mutfl <- trk$MUT_RECALL_F1[i]
+    }
+
+
+    # source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/pyclone.R')
     # debug(pyclone_prep_input)
     # debug(mutect_read.bamreadcount)
     # seg fl has: in 'y': 23
+    flog.info("pyclone_prep_input")
     pyc_inp = pyclone_prep_input(segfl, 
                                  mutfl, 
                                  segfl_type = segfl_type, 
                                  mutfl_type = mutfl_type, 
-                                 outfile = outfile)
+                                 outfile = outfile, 
+                                 # add to the mutant file as well
+                                 purity = purity, 
+                                 ploidy = ploidy)
     
     inp_tsv = data.frame(pyclone_inp_tsv = outfile, 
                purity = purity, 
@@ -662,10 +743,11 @@ pyclone_pipe_r <- function(trk,
   pyclone_trk_fl = "df_pyclone_inp.tsv"
   write_tsv(df_pyclone_inp, pyclone_trk_fl)
   
-  message("getting pyclone cmds")
-  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/pyclone.R')
+  flog.info("getting pyclone cmds")
+  source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/pyclone.R')
   #py_run_path = glue("{pyclonepath}/{run_ver}/{patid}");py_run_path
   #if(!dir.exists(py_run_path)) dir.create(py_run_path, recursive = T)
+  if(pyclone_type == "pyclone"){
   lst = pyclone.run_analysis_pipeline(df_pyclone_inp, 
                                       odir = ".", 
                                       pyclone_params = pyclone_params)
@@ -680,6 +762,23 @@ pyclone_pipe_r <- function(trk,
   
   # annotate pyclone cluster and mutations
   out = pyclone_parse_cluster(df_pyclone_inp)
+  }else if(pyclone_type == "pyclonevi"){
+      lst = pyclonevi.run_analysis_pipeline(df_pyclone_inp,
+        pyclonedir = ,
+        pyclone_params = pyclone_params
+      )
+      pyclone_complete = file.exists("tables/loci.tsv")
+      if (!pyclone_complete) {
+        message("pyclone not complete, starting:")
+        paste0(lst$cmd, " > pyclone.log 2>&1") %>% system()
+      } else if (force_redo) {
+        message("redoing pyclone")
+        paste0(lst$cmd, " > pyclone.log 2>&1") %>% system()
+      }
+
+      # annotate pyclone cluster and mutations
+      out = pyclone_parse_cluster(df_pyclone_inp)
+  }
   
 }
 

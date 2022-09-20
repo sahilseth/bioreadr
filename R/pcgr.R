@@ -16,8 +16,11 @@
 # module load python
 # source activate pcgr_py36
 
+# installation
+# ~/Dropbox/misc/privatemodules/seadragon/pcgr_/0.7.0
+
 # nano examples/pcgr_conf.BRCA.toml
-# pcgr.py --no-docker --input_vcf examples/tumor_sample.BRCA.vcf.gz     ~/ref/human/pcgr test_out grch37 examples/pcgr_conf.BRCA.toml tumor_sample.BRCA  --force_overwrite
+# pcgr.py --no-docker --input_vcf examples/tumor_sample.BRCA.vcf.gz  ~/ref/human/pcgr test_out grch37 examples/pcgr_conf.BRCA.toml tumor_sample.BRCA  --force_overwrite
 
 
 pcgr_colspec_tiers <- function(){
@@ -80,8 +83,14 @@ pcgr_colspec_tiers <- function(){
   )
 }
 
-pcgr <- function(vcf, 
-                 conf = "/rsrch3/home/iacs/sseth/apps/pcgr/0.7.0/examples/pcgr_conf.BRCA.toml"){
+pcgr <- function(vcf = tmp$vcf_out_combvcf, 
+                 outprefix_vcf = tmp$outprefix_vcf,
+                 pcgr_vcf = tmp$pcgr_vcf,
+                 pcgr_tsv = tmp$pcgr_tsv,
+                 pcgr_log = tmp$pcgr_log,
+                 pcgr_dir = tmp$pcgr_dir,
+                 conf = "~/Dropbox/public/flowr/my.ultraseq/pipelines/dnaseq/ss_cl_het/pcgr_conf.BRCA_matched_merged.toml",
+                 pcgr = "/rsrch3/home/iacs/sseth/.conda/envs/pcgr_py36/bin/pcgr.py"){
   
   # usage: pcgr.py [options] <PCGR_DIR> <OUTPUT_DIR> <GENOME_ASSEMBLY> <CONFIG_FILE> <SAMPLE_ID>
   # positional arguments:
@@ -92,10 +101,26 @@ pcgr <- function(vcf,
   # sample_id             Tumor sample/cancer genome identifier - prefix for output files
   # samplename = "185_145_T0-D"
   # samplename = "185_145_T1-D"
-  vcf = glue("variants/{samplename}.vcf.gz")
-  cmd = glue("pcgr.py --no-docker --input_vcf {vcf} ", 
-             "$HOME/ref/human/pcgr variants grch37 {conf} {samplename}_pcgr  --force_overwrite")
-  cmd
+  # vcf = glue("variants/{samplename}.vcf.gz")
   
   
+  # seq of files (from PCGR) --> ready vcf (temp) ---> maf
+  # pcgr_acmg.grch37.vcf.gz
+  # pcgr_acmg.grch37_pass.vcf.gz -> pcgr_acmg.grch37_pass.tsv.gz
+  # pcgr_acmg.grch37.snvs_indels.tiers.tsv -> json > html
+  flog.info("pcgr: running pcgr")
+  # pcgr_mod <- "module load python;source activate pcgr_py36"
+  pcgr_mod = "module load conda_/3;source $conda_setup;conda activate pcgr_py36"
+  cmd = glue("{pcgr_mod};pcgr.py --no-docker --input_vcf {vcf} $HOME/ref/human/pcgr ",
+             "{pcgr_dir} grch37 {conf} {outprefix_vcf} --force_overwrite > {pcgr_log}") #| tee
+  flog.debug(cmd)
+  system(cmd)
+  
+  flog.info("PCGR: create TSV")
+  # tmp = gsub(".gz$", "", tmp$tsv_pcgr_snp)
+  tsv = tools::file_path_sans_ext(pcgr_tsv)
+  cmd=glue("{pcgr_mod};vcf2tsv.py --keep_rejected_calls --compress --print_data_type_header ",
+           "{pcgr_vcf} {tsv} >> {pcgr_log}")
+  flog.debug(cmd)
+  system(cmd)
 }

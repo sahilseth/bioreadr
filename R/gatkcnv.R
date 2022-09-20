@@ -299,73 +299,52 @@ gatkcnv_prep_filenms <- function(trk, gatkdir, gatkcnv_interval_mode){
 }
 
 
-gatkcnv_somatic_pon <- function(df_trk,
-                                num_cores = nrow(df_trk),
+gatkcnv_somatic_pon <- function(trk,
+                                num_cores = 1,
+                                gatkdir = pipe_str$gatkcnv$dir,
+                                gatkcnv_interval_mode = pipe_str$opts$gatkcnv_interval_mode,
                                 run_cmds = F){
   
   # ceate a new trk with ALL reqd files
-  df_trk %<>% 
-    mutate(
-      bam = basename(bam),
-      oprefix = glue("gatkcnv/{name}"),
-      gatkcnv_counts = glue("{oprefix}.counts.tsv"), 
-      gatkcnv_std_cr = glue("{oprefix}.standardizedCR.tsv"),
-      gatkcnv_dn_cr = glue("{oprefix}.denoisedCR.tsv"),
-      gatkcnv_acounts = glue("{oprefix}.allelicCounts.tsv"),
-      
-      # will always run WOMN
-      ## ModelSegments outputs
-      gatk_womn_oprefix = glue("gatkcnv/{name}_clean_womn"),
-      gatkcnv_womn_hets = glue("{gatk_womn_oprefix}.hets.tsv"),
-      gatkcnv_womn_cr_seg = glue("{gatk_womn_oprefix}.cr.seg"),
-      gatkcnv_womn_final_seg = glue("{gatk_womn_oprefix}.modelFinal.seg"),
-      ## CallCopyRatioSegments outputs
-      gatkcnv_womn_called_seg = glue("{gatk_womn_oprefix}.called.seg")
-      
-      
-    )
-  df_trk
-  
-  wranglr::mkdir("gatkcnv")
+  trk <- gatkcnv_prep_filenms(trk, gatkdir, gatkcnv_interval_mode)
+  warnings()
+  trk
+  # wranglr::mkdir("gatkcnv")
   
   
   # ** .collectreadcounts -------
   # need for ALL samples  i=1
-  tmp = mclapply(1:nrow(df_trk), function(i){
-    .collect_read_counts(df_trk$BAM[i], 
-                         df_trk$gatkcnv_counts[i],
+  out_readcnts = mclapply(1:nrow(trk), function(i){
+    .collect_read_counts(bam = trk$bam[i], 
+                         counts = trk$gatkcnv_cnts[i],
                          run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
-  # tmp
   warnings()
   
   # ** denoise -------
   # https://github.com/TheJacksonLaboratory/GLASS/blob/master/snakemake/cnv.smk
-  tmp = mclapply(1:nrow(df_trk), function(i){
-    .denoise_counts(bam = df_trk$BAM[i], 
-                    counts = df_trk$gatkcnv_counts[i],
-                    std_cr = df_trk$gatkcnv_std_cr[i],
-                    dn_cr = df_trk$gatkcnv_dn_cr[i],
+  out_dr = mclapply(1:nrow(trk), function(i){
+    .denoise_counts(counts = trk$gatkcnv_cnts[i],
+                    std_cr = trk$gatkcnv_std_cr[i],
+                    dn_cr = trk$gatkcnv_dn_cr[i],
                     run_cmds=run_cmds)
   }, mc.cores = num_cores)
-  # tmp
   warnings()
   
   # ** plot denoise -------
-  tmp = mclapply(1:nrow(df_trk), function(i){
-    .plot_denoise_cr(std_cr = df_trk$gatkcnv_std_cr[i],
-                     dn_cr = df_trk$gatkcnv_dn_cr[i],
-                     outprefix = df_trk$oprefix[i], 
+  out_plot_dr = mclapply(1:nrow(trk), function(i){
+    .plot_denoise_cr(std_cr = trk$gatkcnv_std_cr[i],
+                     dn_cr = trk$gatkcnv_dn_cr[i],
+                     outprefix = trk$oprefix[i], 
                      run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
   warnings()
   
   # ** .collectallelicounts -------
-  i=1
-  tmp = mclapply(1:nrow(df_trk), function(i){
-    .collect_allelic_counts(bam = df_trk$BAM[i], 
-                            acounts = df_trk$gatkcnv_acounts[i],
+  out_acounts = mclapply(1:nrow(trk), function(i){
+    .collect_allelic_counts(bam = trk$bam[i], 
+                            acounts = trk$gatkcnv_acounts[i],
                             run_cmds=run_cmds)
   }, mc.cores = 1)
   # tmp
@@ -373,17 +352,17 @@ gatkcnv_somatic_pon <- function(df_trk,
   
   # ** modelSegments -------
   # womn
-  i=3
-  tmp = mclapply(1:nrow(df_trk), function(i){
-    .model_segments(bam = df_trk$BAM[i], 
-                    dn_cr = df_trk$gatkcnv_dn_cr[i],
-                    outprefix = df_trk$gatk_womn_oprefix[i],
-                    acounts = df_trk$gatkcnv_acounts[i],
-                    hets = df_trk$gatkcnv_womn_hets[i],
-                    cr_seg = df_trk$gatkcnv_womn_cr_seg[i],
-                    final_seg = df_trk$gatkcnv_womn_final_seg[i],
-                    gatkcnv_modelseg_params = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
-                    called_seg = df_trk$gatkcnv_womn_called_seg[i],
+  out_seg = mclapply(1:nrow(trk), function(i){
+    .model_segments(bam = trk$bam[i], 
+                    dn_cr = trk$gatkcnv_dn_cr[i],
+                    outprefix = trk$gatkcnv_prefix_paired[i],
+                    acounts = trk$gatkcnv_acounts[i],
+
+                    hets = trk$gatkcnv_hets[i],
+                    cr_seg = trk$gatkcnv_cr_seg[i],
+                    final_seg = trk$gatkcnv_final_seg[i],
+                    gatkcnv_modelseg_opts = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
+                    called_seg = trk$gatkcnv_called_seg[i],
                     run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
   # tmp
@@ -403,13 +382,13 @@ gatkcnv_somatic_pon <- function(df_trk,
 }
 
 
-gatkcnv_somatic_matched <- function(trk,
+gatkcnv_somatic <- function(trk,
                                     samplename,
                                     num_cores = 1,
                                     gatkdir = pipe_str$gatkcnv$dir,
 
                                     gatkcnv_interval_mode = pipe_str$opts$gatkcnv_interval_mode,
-                                    
+                                    variant_calling_mode = "matched",
                                     run_cmds = F){
   
   check_args()
@@ -468,8 +447,6 @@ gatkcnv_somatic_matched <- function(trk,
   warnings()
   
   # ** modelSegments -------
-  # womn
-  i=3
   out_seg = mclapply(1:nrow(trk_tum), function(i){
     .model_segments(bam = trk_tum$bam[i], 
                     dn_cr = trk_tum$gatkcnv_dn_cr[i],
@@ -480,10 +457,25 @@ gatkcnv_somatic_matched <- function(trk,
                     hets = trk_tum$gatkcnv_hets[i],
                     cr_seg = trk_tum$gatkcnv_cr_seg[i],
                     final_seg = trk_tum$gatkcnv_final_seg[i],
-                    gatkcnv_modelseg_params = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
+                    gatkcnv_modelseg_opts = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
                     called_seg = trk_tum$gatkcnv_called_seg[i],
                     run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)
+  if(variant_calling_mode == "pon")
+    out_seg = mclapply(1:nrow(trk_tum), function(i){
+      .model_segments(bam = trk_tum$bam[i], 
+                      dn_cr = trk_tum$gatkcnv_dn_cr[i],
+                      outprefix = trk_tum$gatkcnv_prefix_paired[i],
+                      acounts = trk_tum$gatkcnv_acounts[i],
+                      
+                      hets = trk_tum$gatkcnv_hets[i],
+                      cr_seg = trk_tum$gatkcnv_cr_seg[i],
+                      final_seg = trk_tum$gatkcnv_final_seg[i],
+                      gatkcnv_modelseg_opts = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
+                      called_seg = trk_tum$gatkcnv_called_seg[i],
+                      run_cmds=run_cmds, redo = F)
+    }, mc.cores = num_cores)
+
   # tmp
   
   # Number of segmentation-smoothing iterations per MCMC model refit. 
@@ -610,7 +602,6 @@ gatkcnv_germline <- function(){
   # e.g. when using the v4.1.0.0 cnv_germline_cohort_workflow.wdl pipeline script, set the two percentage-of-samples parameters as follows.
   # --low-count-filter-percentage-of-samples 100 \
   # --extreme-count-filter-percentage-of-samples 100 \
-  
   
   # collectreadcounts -------
   
@@ -754,8 +745,11 @@ read_counts <- function(x){
       as_tibble() %>%
       clean_names()
 }
+read_counts.gatk = read_counts
+read_gatk.counts = read_counts
 
 
+ 
 
 
 

@@ -5,47 +5,6 @@
 # in the end, we will just call this function
 # bam-readcount only needs 2-3 cores.
 
-# TEST --------
-if(FALSE){
-  # trk = df_trk %>% filter(path_patient_id == "185_057")
-  
-  # module load conda_/3.6
-  # conda install -c bioconda bam-readcount
-  # Install MiniConda distribution and setup a Python 2.7 environment.
-  # conda install -c aroth85 pyclone
-  library(pacman)
-  p_load(tidyverse, flowr)
-  
-  pipe_src = "~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/bam_readcount_pyclone.R"
-  flow_def = gsub(".R$", ".def", pipe_src)
-  flow_conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/bam_facets.conf"
-  source(pipe_src);opts_flow$load(flow_conf)
-  
-  
-  setwd("/rsrch2/iacs/iacs_dep/sseth/flows/SS/tnbc/ms51_wex_b1/pyclone/185_057")
-  # setwd("/rsrch2/iacs/iacs_dep/sseth/flows/SS/tnbc/ms51_wex_b1/pyclone/185_198")
-  
-  # bam read count
-  bam_readcount_pyclone_r_step1(trk = "trk.tsv")
-  # filter bam read count, pyclone
-  bam_readcount_pyclone_r_step2()
-  # plot pyclone, citup
-  bam_readcount_pyclone_r_step3()
-  
-  trk = readr::read_tsv("trk.tsv")
-  # copy over files to this folder
-  # this would be done, using a transfer script next time!
-  file.copy(file.path("~/projects2/ss_tnbc/data/artemis/wex/2019_b1/mutect", trk$mutect_fl), ".")
-  file.copy(file.path(trk$file1), ".")
-  file.copy(paste0(trk$file1, ".bai"), ".")
-  segs = trk$facets_fl_full %>% gsub("/home/sseth/projects2", "~/projects2", .)
-  fits = gsub("_cncf.tsv", ".rds", segs)
-  file.copy(segs, ".")
-  file.copy(fits, ".")
-  
-  
-}
-
 
 
 
@@ -69,15 +28,16 @@ pyclone_pipe_v1_step1_r <- function(trk,
                                     bamreadcount_exe = opts_flow$get("bamreadcount_exe"),
                                     fa_fl = opts_flow$get("ref_fasta"),
                                     
+                                    pyclonedir = pipe_str$pyclone_purecn$dir,
                                     pyclone_params = opts_flow$get("pyclone_params"),
                                     segfl_type = opts_flow$get("segfl_type"), 
                                     mutfl_type = opts_flow$get("mutfl_type"),
-
+                                    bam_readcount_r_func = c(bam_readcount_r.ssm, bam_readcount_r.mutect),
                                     conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf"){
-  
+
   opts_flow$load(conf)
-  
   pacman::p_load(tidyverse, glue, janitor, magrittr, testit)
+  bam_readcount_r_func = match.arg(bam_readcount_r_func)
 
   trk = read_clone_arch_input_trk(trk, normalize_file_names = T)
   
@@ -87,7 +47,8 @@ pyclone_pipe_v1_step1_r <- function(trk,
   # source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/pyclone.R')
   # source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/gm_mutect.R')
   # source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/bam_readcount.R')
-  out = bam_readcount_r(trk,
+  # would be one of the few
+  out = bam_readcount_r_func(trk,
                         col_fl = "MUT",
                         col_samp = "NAME",
                         bamreadcount_exe = bamreadcount_exe,
@@ -119,18 +80,20 @@ pyclone_pipe_v1_step2_r <- function(pyclone_path = ".",
                                     trk = "trk.tsv",
                                     conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf", 
                                     force_redo = FALSE,
-                                    clean_bams = FALSE){
+                                    clean_bams = FALSE
+                                    ){
   
   pacman::p_load(tidyverse, glue, janitor, magrittr)
   flowr::opts_flow$load(conf)
   
-  trk = read_clone_arch_input_trk(trk, normalize_file_names = T)
+  # trk = read_clone_arch_input_trk(trk, normalize_file_names = T)
+  trk = metadata_for_dnaseq(trk, normalize_file_names = T)
   
   # out = bam_readcount_r(trk, execute = execute)
   # df_mut_recall = mutect.read(trk, 
   #                             col_samp = "NAME",
   #                             col_fl = "MUT_RECALL")
-  df_bamreadcount = read_rds("df_bamreadcount.rds")
+  df_bamreadcount = read_rds(trk$mut_recall_rds[1])
   
   message("we have a total of ", n_distinct(df_bamreadcount$key), " mutations")
   # add a filtering step
@@ -149,16 +112,17 @@ pyclone_pipe_v1_step2_r <- function(pyclone_path = ".",
                            max_af > 0.05,
                            max_alt_count > 2) # assuming, alt count is max, where AF is max...
   message("filtering # mutations: ", n_distinct(df_bamreadcount$key))
-  write_rds(df_bamreadcount, "df_bamreadcount_f1.rds")
+  write_rds(df_bamreadcount, "ssm/df_bamreadcount_f1.rds")
   
+  # write out files
   bamreadcount_f_fl = lapply(unique(df_bamreadcount$samplename), function(samp){
-    fl = paste0(samp, ".bamreadcount_ann_f.tsv")
+    fl = paste0("ssm/", samp, ".bamreadcount_ann_f.tsv")
     filter(df_bamreadcount, samplename == samp) %>% write_tsv(fl)
     fl
   }) %>% unlist()
   trk$MUT_RECALL_F1 = bamreadcount_f_fl
   # update trk, with readcount file
-  write_tsv(trk, "trk.tsv")
+  write_tsv(trk, "ssm/trk.tsv")
   
   # filter(df_bamreadcount, gene_knowngene == "EGFR")
   # filter(df_bamreadcount, gene_knowngene == "SETD2")
@@ -174,10 +138,12 @@ pyclone_pipe_v1_step2_r <- function(pyclone_path = ".",
   # parse and annotate clusters
   # re-do basic plots
   # debug(pyclone_pipe_r)
-  pyclone_pipe_r(trk, 
+  pyclone_pipe_r(trk,
                  pyclone_params = opts_flow$get("pyclone_params"),
-                 segfl_type = opts_flow$get("segfl_type"), 
-                 mutfl_type = opts_flow$get("mutfl_type"), force_redo = force_redo)
+                 pyclone_type = opts_flow$get("pyclone_pyclone_type"),
+                 segfl_type = opts_flow$get("pyclone_segfl_type"), 
+                 mutfl_type = opts_flow$get("pyclone_mutfl_type"), 
+                 force_redo = force_redo)
   
   # its fine we can plot twice :)
   pyclone_plots(pyclone_path)
@@ -222,8 +188,135 @@ pyclone_pipe_v1_step3_r <- function(pyclone_path = ".",
   
   # timescape
   
+}
+
+
+
+pyclone_pipe_v1_facets_flo <- function(trk_fl, 
+                                samplename, 
+                                odir,
+                                flow_conf,
+                                fetch_files.exe = opts_flow$get("fetch_files.exe")){
+  
+  # module load conda_/3.6
+  # conda install -c bioconda bam-readcount
+  # Install MiniConda distribution and setup a Python 2.7 environment.
+  # conda install -c aroth85 pyclone
+  library(pacman)
+  p_load(tidyverse, flowr)
+  
+  # transfer fls
+  # trk = readr::read_tsv(trk_fl)
+  trk <- read_clone_arch_input_trk(trk_fl, normalize_file_names = F)
+  # copy over files to this folder
+  # this would be done, using a transfer script next time!
+  mut_fls = trk$MUT
+  bam_fls = file.path(trk$BAM)
+  bai_fls = paste0(bam_fls, ".bai")
+  seg_fls = trk$CNV
+  
+  # if CNV type == "facets
+  fit_fls = gsub("_cncf.tsv", ".rds", seg_fls)
+  
+  # ** transfer in ---------
+  # copy over trk as well
+  fls = c(mut_fls, bam_fls, bai_fls, seg_fls, fit_fls, trk_fl)
+  # temporarily only copy trk file
+  # fls = trk_fl
+  cmd_transfer = glue("{fetch_files.exe} {fls}") %>% as.character()
+  flowmat_transfer_in = to_flowmat(
+    list(transfer_in = as.character(cmd_transfer)), samplename = samplename)
+  # flowmat_transfer_in$cmd %>% paste(collapse = "\n") %>% cat()
+  
+  # create all pyclone trk files
+  # ** step 1 bam read count ---------
+  cmd_step1 = glue("funr my.ultraseq::pyclone_pipe_v1_step1_r trk=trk.tsv conf={flow_conf}") %>% 
+    as.character()
+  # this will ideally, read file from the flowr rundir
+  # create a new trk, with bam readcount files
+  # ** step 2 pyclone ---------
+  # execute: run pyclone (or only parse results)
+  cmd_step2 = glue("funr my.ultraseq::pyclone_pipe_v1_step2_r trk=trk.tsv conf={flow_conf} clean_bams=TRUE force_redo=FALSE") %>% 
+    as.character()
+  # ** step 3 citup ---------
+  cmd_step3 = glue("funr my.ultraseq::pyclone_pipe_v1_step3_r conf={flow_conf}") %>% 
+    as.character()
+  
+  cmds = list(cmd_step1 = cmd_step1, 
+              cmd_step2 = cmd_step2, 
+              cmd_step3 = cmd_step3)
+  flowmat_pyclone = to_flowmat(cmds, samplename)
+  
+  # ** transfer out ---------
+  fls_out = c("tables", "plots", "yaml", 
+              "*tsv", # includes trk, bamreadcount, mat, vaf etc.
+              "citup_vaf", "citup_ccf" # citup stuff
+  )
+  wranglr:::mkdir(odir)
+  cmd_transfer_out = glue("rsync -avP {fls_out} {odir}/") %>% 
+    as.character()
+  flowmat_transfer_out = to_flowmat(
+    list(transfer_out = as.character(cmd_transfer_out)), samplename = samplename)
+  
+  flowmat = bind_rows(flowmat_transfer_in, 
+                      flowmat_pyclone, 
+                      flowmat_transfer_out)
+  
+  # these are a final set of outfiles
+  lst_outfiles = c(pyclone_table = "tables/loci_ann.tsv",
+                   se_pyclone = "tables/se_pyclone.rds")
+  
+  return(list(flowmat = flowmat, 
+              outfiles = lst_outfiles))
   
 }
+
+
+
+
+
+# TEST --------
+if(FALSE){
+  # trk = df_trk %>% filter(path_patient_id == "185_057")
+  
+  # module load conda_/3.6
+  # conda install -c bioconda bam-readcount
+  # Install MiniConda distribution and setup a Python 2.7 environment.
+  # conda install -c aroth85 pyclone
+  library(pacman)
+  p_load(tidyverse, flowr)
+  
+  pipe_src = "~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/bam_readcount_pyclone.R"
+  flow_def = gsub(".R$", ".def", pipe_src)
+  flow_conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/bam_facets.conf"
+  source(pipe_src);opts_flow$load(flow_conf)
+  
+  
+  setwd("/rsrch2/iacs/iacs_dep/sseth/flows/SS/tnbc/ms51_wex_b1/pyclone/185_057")
+  # setwd("/rsrch2/iacs/iacs_dep/sseth/flows/SS/tnbc/ms51_wex_b1/pyclone/185_198")
+  
+  # bam read count
+  bam_readcount_pyclone_r_step1(trk = "trk.tsv")
+  # filter bam read count, pyclone
+  bam_readcount_pyclone_r_step2()
+  # plot pyclone, citup
+  bam_readcount_pyclone_r_step3()
+  
+  trk = readr::read_tsv("trk.tsv")
+  # copy over files to this folder
+  # this would be done, using a transfer script next time!
+  file.copy(file.path("~/projects2/ss_tnbc/data/artemis/wex/2019_b1/mutect", trk$mutect_fl), ".")
+  file.copy(file.path(trk$file1), ".")
+  file.copy(paste0(trk$file1, ".bai"), ".")
+  segs = trk$facets_fl_full %>% gsub("/home/sseth/projects2", "~/projects2", .)
+  fits = gsub("_cncf.tsv", ".rds", segs)
+  file.copy(segs, ".")
+  file.copy(fits, ".")
+  
+  
+}
+
+
 
 
 

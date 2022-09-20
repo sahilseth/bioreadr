@@ -50,6 +50,16 @@ to_gr.gatkcnv.baf <- function(x){
   
 }
 
+switch_chr_names.to_chr <- function(x){
+  gsub("23", "X", x) %>% 
+    gsub("24", "Y", .)
+}
+recode_chr_names.to_chr = switch_chr_names.to_chr
+
+switch_chr_names.to_int <- function(x) {
+  gsub("X", "23", x) %>%
+    gsub("Y", "24", .)
+}
 
 
 

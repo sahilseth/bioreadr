@@ -109,8 +109,11 @@ titancna_somatic_matched <- function(trk,
                                      run_cmds = F,
                                      funr_exe = opts_flow$get("R_funr_exe"),
                                      num_cores = 4,
-                                     rscript_exe = opts_flow$envir$R.sing_rscript,
-                                     titandir = pipe_str$titancna$dir,
+                                     # need a older version, with SNPChip available
+                                     rscript_exe = opts_flow$envir$R35_script,
+                                     titancna_dir = pipe_str$titancna$dir,
+                                     titancna_exe = opts_flow$envir$titancna_exe,
+                                     titancna_centromere_gap_fl = opts_flow$envir$titancna_centromere_gap_fl,
                                      titancna_cluster_min = opts_flow$envir$titancna_cluster_min,
                                      titancna_cluster_max = opts_flow$envir$titancna_cluster_max,
                                      titancna_opts = opts_flow$envir$titancna_opts
@@ -143,8 +146,8 @@ titancna_somatic_matched <- function(trk,
       # skip taking basename of bam!
       # bam = basename(bam),
       # oprefix = glue("{outpath}{name}"),
-      titan_cnr_file = glue("{titandir}/{outprefix}.denoisedCR_titan.tsv"),
-      titan_hets_file = glue("{titandir}/{outprefix_paired}.hets_titan.tsv")
+      titan_cnr_file = glue("{titancna_dir}/{outprefix}.denoisedCR_titan.tsv"),
+      titan_hets_file = glue("{titancna_dir}/{outprefix_paired}.hets_titan.tsv")
     )
   trk
   
@@ -164,8 +167,6 @@ titancna_somatic_matched <- function(trk,
   cmds_prep = c(cmd_prep_cnr, cmd_prep_hets)
   
   # ttn.split
-  titancna="$HOME/Dropbox/public/github_titancna/scripts/R_scripts/titanCNA.R"
-  centromere_gap_fl = "$HOME/ref/human/b37/annotations/broad-somatic-b37/GRCh37.p13_centromere_UCSC-gapTable.txt"
   
   # --chrs 'c(1:22, \"X\")'
   ploidies = c(2:4)
@@ -185,21 +186,20 @@ titancna_somatic_matched <- function(trk,
   ttn_cmds = lapply(1:nrow(trk_tum), function(i){
     
     name = trk_tum$name[i]
-    # target = glue("{titandir}/{name}_optimalClusters.txt")
+    # target = glue("{titancna_dir}/{name}_optimalClusters.txt")
     titan_hets_file = trk_tum$titan_hets_file[i]
     titan_cnr_file = trk_tum$titan_cnr_file[i]
     tmp = mclapply(ploidies, function(ploidy){
       mclapply(clusters, function(cluster){
         # cluster = 2; ploidy = 2
         # estimateNormal: method to estimate normal map 
-        outdir = glue("{titandir}/run_ploidy{ploidy}")
+        outdir = glue("{titancna_dir}/run_ploidy{ploidy}")
         # wranglr::mkdir(outdir)
-        cmd_titancna = glue("mkdir -p {outdir};{rscript_exe} {titancna} --id {name} --hetFile {titan_hets_file} --cnFile {titan_cnr_file} ", 
-                            "--numClusters {cluster} --numCores {num_cores} --normal_0 0.5 --ploidy_0 {ploidy} ",
-                            "--estimateNormal map --estimatePloidy TRUE --estimateClonality TRUE --outDir {outdir} ", 
+        cmd_titancna = glue("mkdir -p {outdir};{rscript_exe} {titancna_exe} --id {name} --hetFile {titan_hets_file} --cnFile {titan_cnr_file} ", 
+                            "--numClusters {cluster} --numCores {num_cores} --ploidy_0 {ploidy} ",
                             # Hyperparameter on Gaussian variance; for WES, use 2500; for WGS, use 10000; float (Default: 10000
-                            "--gender {gender} {titancna_opts} ", 
-                            "--centromere {centromere_gap_fl} >> {outdir}_{name}.out")
+                            "--outDir {outdir} --gender {gender} {titancna_opts} ", 
+                            "--centromere {titancna_centromere_gap_fl} >> {outdir}_{name}.out")
         
         if(run_cmds){
           cluster = sprintf("%02d", cluster)
@@ -220,9 +220,9 @@ titancna_somatic_matched <- function(trk,
   # this one will automatically select a solution PER SAMPLE
   titancna_selectsolution = "$HOME/Dropbox/public/github_titancna/scripts/R_scripts/selectSolution_ss.R"
   cmd_titancna_select_solutions = glue("{rscript_exe} {titancna_selectsolution} ",
-                                       "--ploidyRun2={titandir}/run_ploidy2 --ploidyRun3={titandir}/run_ploidy3 ",
-                                       "--ploidyRun4={titandir}/run_ploidy4 --threshold=0.05 ",
-                                       "--outFile {titandir}/optimalClusters.txt --outFileFull {titandir}/allClusters.txt")
+                                       "--ploidyRun2={titancna_dir}/run_ploidy2 --ploidyRun3={titancna_dir}/run_ploidy3 ",
+                                       "--ploidyRun4={titancna_dir}/run_ploidy4 --threshold=0.05 ",
+                                       "--outFile {titancna_dir}/optimalClusters.txt --outFileFull {titancna_dir}/allClusters.txt")
   # system(cmd_titancna_select_solutions)
   
   
@@ -259,13 +259,14 @@ titancna_merge_opt_cluster <- function(df_trk){
         loglik = col_double(),
         sdbw = col_double(),
         path = col_character()
-      )) %>% 
-      clean_names()
+      )) %>% clean_names()
+      opt_clus$individual = df_trk$individual[i]
+      opt_clus
   }) %>% bind_rows()
   # tmp
-  df_trk = left_join(df_trk, tmp, by = c("name" = "barcode"))
+  df_trk = left_join(df_trk, tmp, by = c("name" = "barcode", "individual"))
   # write_tsv(df_trk, "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/titancna_v2/df_ttn_opt.tsv")
-
+  df_trk
   }
 
 
@@ -365,6 +366,7 @@ resolve_state <- function(x) {
   # if(is.na(x)) return(x)
   x[which(abs(x) == max(abs(x)))][1]
 }
+
 # x=c("NEUT", "HETD")
 resolve_corrected_call <- function(x) {
   if (length(x) == 1) {
@@ -373,6 +375,7 @@ resolve_corrected_call <- function(x) {
   indxs <- which(df_titan_ref$titan_corrected_call2 %in% x)
   df_titan_ref$titan_corrected_call2[max(indxs)]
 }
+
 # x=c("DLOH", "DHET")
 resolve_call <- function(x) {
   if (length(x) == 1) {
@@ -382,7 +385,8 @@ resolve_call <- function(x) {
   df_titan_ref$titan_call[max(indxs)]
 }
 
-titan_cna_states <- function() {
+
+titan_cna_states <- function(){
   # based on discussions here
   # https://github.com/gavinha/TitanCNA/issues/8
   # read.delim(pipe("pbpaste")) %>% dput()
@@ -454,10 +458,10 @@ titan_cna_states <- function() {
   ))
   df_titan_states %>% dplyr::mutate(titan_total_copy_number = as.integer(titan_total_copy_number))
 }
+df_titan_ref <- titan_cna_states()
 
 
 # plots -----
-
 # compare purity, ploidy, and number of clusters
 
 plot_purity_ploidy <- function(df_trk_ttn){

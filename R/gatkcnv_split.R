@@ -146,7 +146,7 @@ gatkcnv_somatic_matched.split <- function(trk,
                     hets = trk_tum$gatkcnv_hets[i],
                     cr_seg = trk_tum$gatkcnv_cr_seg[i],
                     final_seg = trk_tum$gatkcnv_final_seg[i],
-                    gatkcnv_modelseg_params = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
+                    gatkcnv_modelseg_opts = "--minimum-total-allele-count-case 30 --maximum-number-of-smoothing-iterations 25 --number-of-smoothing-iterations-per-fit 1 --kernel-variance-allele-fraction 0.8 --kernel-variance-copy-ratio 0.8",
                     called_seg = trk_tum$gatkcnv_called_seg[i],
                     run_cmds=run_cmds, redo = F)
   }, mc.cores = num_cores)

@@ -95,12 +95,22 @@ if(FALSE){
   
 }
 
+#  fastq_dump_exe <- "/rsrch3/home/iacs/sseth/apps/sra_toolkit/2.10.8/bin/fastq-dump"
 sra_fastq_dump <- function(srr_ids, 
                            samplename = "",
                            fqpath, 
-                           fastq_dump_exe = "~/apps/conda/3.5/bin/fastq-dump"){
+                           # https://edwards.sdsu.edu/research/fastq-dump/
+                           # --split-files: split into read number:
+                           # --readids: add a unique read id, /1, /2 for read1 and 2
+                           # --skip-technical: remove technical reads
+                           # --dumpbase: in base space, not color
+                           # --clip: Some of the sequences in the SRA contain tags that are used e.g. for whole genome amplification and need to be removed. This will remove those sequences for you. You should enable this flag as it will trim off those sequences for you.
+                           fastq_dump_cpu = "4",
+                           fastq_dump_opts = "--gzip --skip-technical  --readids --read-filter pass --dumpbase --split-files --clip ",
+                           fastq_dump_exe = "module load conda_;source $conda_setup;conda activate sratoolkit;parallel-fastq-dump"
+){
   
-  cmd = glue("{fastq_dump_exe} --outdir {fqpath} --gzip --skip-technical  --readids --read-filter pass --dumpbase --split-3 --clip {srr_ids}")
+  cmd = glue("{fastq_dump_exe} --outdir {fqpath} --tmpdir {fqpath} --threads 4 {fastq_dump_opts} --sra-id {srr_ids}")
   cmd
   
   flowmat = to_flowmat(list(dn = cmd), samplename = samplename)

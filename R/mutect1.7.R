@@ -57,7 +57,7 @@ mutect1.7 <- function(trk,
                       ref_fasta = opts_flow$get('ref_fasta'),
                       
                       mutect1_jar = opts_flow$get('mutect1_jar'),
-                      mutect1_cpu = opts_flow$get('mutect1_cpu'),
+                      mutect1_cpu = opts_flow$get('mutect1_cpu'), # not used
                       mutect1_mem_str = opts_flow$get("mutect1_mem_str"),
                       
                       mutect1_opts = opts_flow$get('mutect1_opts'),
@@ -65,6 +65,7 @@ mutect1.7 <- function(trk,
                       mutect1_germline_vcf = opts_flow$get('mutect1_germline_vcf'),
                       mutect1_cosmic_vcf = opts_flow$get('mutect1_cosmic_vcf'),
                       mutect1_pon_vcf = opts_flow$get("mutect1_pon_vcf"),
+                      mutect1_dir = pipe_str$mutect1$dir,
 
                       # previous option, we will ALWAYS assume this is merged,
                       # ONE bam per sample, not multiple!
@@ -76,103 +77,127 @@ mutect1.7 <- function(trk,
   
   # expect ALL non null args
   check_args(ignore = "mutect1_pon_vcf")
-  
+  flog.debug(paste0("Generating a mutect1.7 flowmat for sample: ", samplename))
+
   # check generic columns
   trk = metadata_for_mutect1(trk)
-  expect_columns(trk, "outprefix")
-  if(variant_calling_mode == "matched")
-    expect_columns(trk, "outprefix_paired")
+  # file names are now, matched, OR pon
+  # we are not keeping the ref info in file names now...
+  expect_columns(trk, c("outprefix", "outprefix_paired"))
+  # ** prep files ----------
+  trk %<>% 
+    mutate(mutect1_outprefix = file.path(mutect1_dir, outprefix), 
+           mutect1_outprefix_paired = file.path(mutect1_dir, outprefix_paired),
+           mutect1_vcf = paste0(mutect1_outprefix_paired, "_mutect.merged.vcf.gz"))
   
   trk_tum = filter(trk, normal == "NO")
   trk_norm = filter(trk, normal == "YES")
+
   
   # for now this will ONLY work for single tumor sample
   # this maybe needs to be a loop!
   i=1
-  tumor_bam = trk_tum$bam[i]
-  # assuming a SINGLE normal!!
-  normal_bam = trk_norm$bam[1]
-  outprefix = trk_tum$outprefix_paired[i]
-  
-  bamset = bam_set(bam = tumor_bam, 
-                    outprefix = outprefix,
-                    ref_fasta = ref_fasta, 
-                    interval_split = interval_split,
-                    split_by = "interval_split")
-  
-  # pairedset = paired_bam_set(tumor_bam = tumor_bam, normal_bam = normal_bam, 
-  #                            outprefix = outprefix, 
-  #                            is_merged = is_merged, split_by_chr = split_by_chr)
-  
-  # pipename = match.call()[[1]]
-  flog.debug(paste0("Generating a mutect1.7 flowmat for sample: ", samplename))
-  
-  mutects <- paste0(bamset$outprefix_interval, ".mutect.txt")
-  vcfs <- paste0(bamset$outprefix_interval, ".mutect.vcf")
-  wigs <- paste0(bamset$outprefix_interval, ".wig")
-  
-  # lapply(list(tumor_bam, normal_bam, bamset$outprefix_chr, bamset$chrs_names), length)
-  
-  intervals = bamset$intervals
-  if(!is.null(mutect1_pon_vcf) & mutect1_pon_vcf != "" )
-    mutect1_opts = glue("{mutect1_opts} --normal_panel {mutect1_pon_vcf}")
-  # hg19_cosmic_v54_120711.vcf and dbsnp_132_b37.leftAligned.vcf
-  
-  # https://gatkforums.broadinstitute.org/gatk/discussion/2226/cosmic-and-dbsnp-files-for-mutect
-  # Sites that are in dbSNP and COSMIC do NOT use the prior as a site being germline during somatic classification. 
-  # This is because dbSNP contains a number of sites that are common somatic events which were deposited into dbSNP in the past. 
-  # We want to counteract this effect and not make these sites harder to call
-  # Sites in COSMIC are exempt from the "Panel of Normals" filter -- again these are typically recurrent events and this is a 
-  # mechanism to bypass this filter if necessary
-  # Sites in the output call_stats file are annotated as "COSMIC"
-  # germline_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/dbsnp_138.b37.excluding_sites_after_129.vcf.gz"
-  # cosmic_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/hg19_cosmic_v54_120711.vcf"
-  # For input string: "R", for input source: /rsrch3/home/iacs/sseth/ref/human/b37/annotations/broad-somatic-b37/af-only-gnomad.raw.sites.vcf.gz
-  # The analysis MuTect currently does not support parallel execution with nt.  Please run your analysis without the nt option.                   
-  cmd_mutect <- glue("{java_exe} {mutect1_mem_str} -Djava.io.tmpdir={java_tmp} -jar {mutect1_jar} -T MuTect --reference_sequence {ref_fasta} ",
-                     "--input_file:tumor {tumor_bam} --input_file:normal {normal_bam} ",
-                     "--out {mutects} --vcf {vcfs} --coverage_file {wigs} ",
-                     "--dbsnp {mutect1_germline_vcf} ",
-                     "--cosmic {mutect1_cosmic_vcf} ",
-                     "{mutect1_opts} {intervals}")
-  # test:
-  # cmd_mutect[1:2]
+  tmp = lapply(1:nrow(trk_tum), function(i){
 
-  # .filter='judgement==KEEP'
-  # in case of a single file, this mean a read and write operation
-  merged_mutect_tsv = paste0(bamset$outprefix, "_mutect.merged.tsv.gz")
-  merged_mutect_tsv_pass = paste0(bamset$outprefix, "_mutect.merged.pass.tsv.gz")
-  merged_mutect_vcf = paste0(bamset$outprefix, "_mutect.merged.vcf.gz")
-  cmd_mergetsv = sprintf("flowr ultraseq::merge_sheets x=%s outfile=%s",
-                       paste(mutects, collapse = ","), merged_mutect_tsv)
-  # ** merge VCFs ---------
-  # mutect_vcf = paste0(outprefix, ".vcf.gz")
-  mutect_vcfs_i = paste0(vcfs, collapse = " -I ")
-  # GatherVcfs
-  # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/picard_vcf_GatherVcfs.php
-  # gather should be faster
-  cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} GatherVcfs -I {mutect_vcfs_i} -O {merged_mutect_vcf}; ")
-  # we dont have stats file for mutect1!
-  #   "bash ~/Dropbox/public/flow-r/my.ultraseq/pipelines/bin/m2_merge_vcf_stats.sh {merged_mutect_vcf}.stats"
-  
-  # convert to vcf by default
-  # cmd_vcf = glue("funr my.ultraseq:::to_vcf.mutect_call_stats x={merged_mutect_tsv} outfile={merged_mutect_vcf}")
-  # --artifact_detection_mode: used when running the caller on a normal (as if it were a tumor) to detect artifacts
-  
-  # @sbamin, create a filtered file by default
-  keep_mutect <- glue("zgrep -E 'contig|KEEP' {merged_mutect_tsv} > {merged_mutect_tsv_pass}")
+    tumor_bam = trk_tum$bam[i]
+    # assuming a SINGLE normal!!
+    normal_bam = trk_norm$bam[1]
+    outprefix = trk_tum$mutect1_outprefix_paired[i]
+    
+    bamset = bam_set(bam = tumor_bam, 
+                      outprefix = outprefix,
+                      ref_fasta = ref_fasta, 
+                      interval_split = interval_split,
+                      split_by = "interval_split")
+    
+    # pairedset = paired_bam_set(tumor_bam = tumor_bam, normal_bam = normal_bam, 
+    #                            outprefix = outprefix, 
+    #                            is_merged = is_merged, split_by_chr = split_by_chr)
+    
+    # pipename = match.call()[[1]]
+    
+    mutects <- paste0(bamset$outprefix_interval, ".mutect.txt")
+    vcfs <- paste0(bamset$outprefix_interval, ".mutect.vcf")
+    wigs <- paste0(bamset$outprefix_interval, ".wig")
+    
+    # lapply(list(tumor_bam, normal_bam, bamset$outprefix_chr, bamset$chrs_names), length)
+    
+    intervals = bamset$intervals
+    if(!is.null(mutect1_pon_vcf) & mutect1_pon_vcf != "" )
+      mutect1_opts = glue("{mutect1_opts} --normal_panel {mutect1_pon_vcf}")
+    # hg19_cosmic_v54_120711.vcf and dbsnp_132_b37.leftAligned.vcf
+    
+    # https://gatkforums.broadinstitute.org/gatk/discussion/2226/cosmic-and-dbsnp-files-for-mutect
+    # Sites that are in dbSNP and COSMIC do NOT use the prior as a site being germline during somatic classification. 
+    # This is because dbSNP contains a number of sites that are common somatic events which were deposited into dbSNP in the past. 
+    # We want to counteract this effect and not make these sites harder to call
+    # Sites in COSMIC are exempt from the "Panel of Normals" filter -- again these are typically recurrent events and this is a 
+    # mechanism to bypass this filter if necessary
+    # Sites in the output call_stats file are annotated as "COSMIC"
+    # germline_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/dbsnp_138.b37.excluding_sites_after_129.vcf.gz"
+    # cosmic_vcf = "/home/sseth/ref/human/b37/annotations/gatk_bundle/hg19_cosmic_v54_120711.vcf"
+    # For input string: "R", for input source: /rsrch3/home/iacs/sseth/ref/human/b37/annotations/broad-somatic-b37/af-only-gnomad.raw.sites.vcf.gz
+    # The analysis MuTect currently does not support parallel execution with nt.  Please run your analysis without the nt option.                   
+    cmd_mutect <- glue("{java_exe} {mutect1_mem_str} -Djava.io.tmpdir={java_tmp} -jar {mutect1_jar} -T MuTect --reference_sequence {ref_fasta} ",
+                      "--input_file:tumor {tumor_bam} --input_file:normal {normal_bam} ",
+                      "--out {mutects} --vcf {vcfs} --coverage_file {wigs} ",
+                      "--dbsnp {mutect1_germline_vcf} ",
+                      "--cosmic {mutect1_cosmic_vcf} ",
+                      "{mutect1_opts} {intervals}")
+    if(variant_calling_mode == "pon")
+      cmd_mutect <- glue("{java_exe} {mutect1_mem_str} -Djava.io.tmpdir={java_tmp} -jar {mutect1_jar} -T MuTect --reference_sequence {ref_fasta} ",
+                    "--input_file:tumor {tumor_bam} ",
+                    "--out {mutects} --vcf {vcfs} --coverage_file {wigs} ",
+                    "--dbsnp {mutect1_germline_vcf} ",
+                    "--cosmic {mutect1_cosmic_vcf} ",
+                    "{mutect1_opts} {intervals}")
 
-  # cmd_merge = paste(cmd_mergetsv, keep_mutect, cmd_mergevcf, sep = ";")
-  
-  cmds_mrg = c(cmd_mergetsv, cmd_mergevcf, keep_mutect)
-  
-  #if(execute_cmds) sapply(cmds, system)
-  
-  flowmat = list(
-    mutect1.splt = cmd_mutect,
-    mutect1.mrg = cmds_mrg) %>% to_flowmat(samplename = samplename)
-  
-  return(list(flowmat=flowmat, outfiles=list(merged_mutect_tsv = merged_mutect_tsv, merged_mutect_vcf = merged_mutect_tsv)))
+
+    # test:
+    # cmd_mutect[1:2]
+
+    # .filter='judgement==KEEP'
+    # in case of a single file, this mean a read and write operation
+    mutect1_tsv = paste0(bamset$outprefix, "_mutect.merged.tsv.gz")
+    mutect1_tsv_pass = paste0(bamset$outprefix, "_mutect.merged.pass.tsv.gz")
+    mutect1_vcf = paste0(bamset$outprefix, "_mutect.merged.vcf.gz")
+    cmd_mergetsv = sprintf("flowr ultraseq::merge_sheets x=%s outfile=%s",
+                        paste(mutects, collapse = ","), mutect1_tsv)
+    # ** merge VCFs ---------
+    # mutect_vcf = paste0(outprefix, ".vcf.gz")
+    mutect_vcfs_i = paste0(vcfs, collapse = " -I ")
+    # GatherVcfs
+    # https://software.broadinstitute.org/gatk/documentation/tooldocs/current/picard_vcf_GatherVcfs.php
+    # gather should be faster
+    cmd_mergevcf = glue("{gatk4_exe} --java-options {java_mem} GatherVcfs -I {mutect_vcfs_i} -O {mutect1_vcf}; ")
+    # we dont have stats file for mutect1!
+    #   "bash ~/Dropbox/public/flow-r/my.ultraseq/pipelines/bin/m2_merge_vcf_stats.sh {merged_mutect_vcf}.stats"
+    
+    # convert to vcf by default
+    # cmd_vcf = glue("funr my.ultraseq:::to_vcf.mutect_call_stats x={merged_mutect_tsv} outfile={merged_mutect_vcf}")
+    # --artifact_detection_mode: used when running the caller on a normal (as if it were a tumor) to detect artifacts
+    
+    # @sbamin, create a filtered file by default
+    keep_mutect <- glue("zgrep -E 'contig|KEEP' {mutect1_tsv} > {mutect1_tsv_pass}")
+
+    # cmd_merge = paste(cmd_mergetsv, keep_mutect, cmd_mergevcf, sep = ";")
+    
+    cmds_mrg = c(cmd_mergetsv, cmd_mergevcf, keep_mutect)
+    
+    #if(execute_cmds) sapply(cmds, system)
+    
+    flowmat = list(
+      mutect1.splt = cmd_mutect,
+      mutect1.mrg = cmds_mrg) %>% to_flowmat(samplename = samplename)
+    lst = list(flowmat = flowmat, 
+                outfiles = list(mutect1_tsv = mutect1_tsv, 
+                                mutect1_vcf = mutect1_vcf))
+  })
+  lst = purrr::transpose(tmp)
+  lst$flowmat %<>% bind_rows()
+  lst$trk = trk
+
+  return(lst)
   
 }
 

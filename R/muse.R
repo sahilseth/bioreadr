@@ -27,58 +27,71 @@
 muse <- function(
       trk, 
       samplename,
+      variant_calling_mode,
       ref_fasta = opts_flow$get('ref_fasta'),
       split_by_chr = TRUE,
       java_mem_str = opts_flow$envir$java_mem_str,
       gatk4_exe = opts_flow$envir$gatk4_exe,
-      mutect1_germline_vcf = opts_flow$envir$mutect1_germline_vcf
+      mutect1_germline_vcf = opts_flow$envir$mutect1_germline_vcf,
+      muse_dir = pipe_str$muse$dir,
+      interval_split_bed = opts_flow$get("capture_bi_wex_booster_intervals_split_bed")
 
 ){
 
   check_args()
   flog.debug(glue("Generating Muse flowmat for sample: {samplename}"))
 
+  expect_columns(trk, c("outprefix", "outprefix_paired"))
   trk <- metadata_for_mutect1(trk)
-  expect_columns(trk, "outprefix")
-  if (variant_calling_mode == "matched") {
-        expect_columns(trk, "outprefix_paired")
-    }
+  # prep files
+  trk %<>% 
+    mutate(muse_outprefix = file.path(muse_dir, outprefix), 
+           muse_outprefix_paired = file.path(muse_dir, outprefix_paired),
+           muse_vcf = paste0(muse_outprefix_paired, ".vcf.gz"))
 
   trk_tum <- filter(trk, normal == "NO")
   trk_norm <- filter(trk, normal == "YES")
 
   i <- 1
   out = lapply(1:nrow(trk_tum), function(i){
-
+ 
     tumor_bam <- trk_tum$bam[i]
     normal_bam <- trk_norm$bam[1] # assuming a SINGLE normal!!
     tumor_name <- trk_tum$name[i]
     normal_name <- trk_norm$name[1]
-    outprefix <- trk_tum$outprefix_paired[i]
+    muse_outprefix_paired <- trk_tum$muse_outprefix_paired[i]
 
-    bamset = bam_set(bam = tumor_bam, outprefix = outprefix,
-            ref_fasta = ref_fasta, split_by = "chr")
+    # source("~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/bam_set.R")
+    bamset = bam_set(bam = tumor_bam, outprefix = muse_outprefix_paired,
+            ref_fasta = ref_fasta, split_by = "interval_split_bed",
+            interval_split = interval_split_bed)
 
     # create split cmds
-    intervals = bamset$intervals %>% paste0("-r ", .)
-    outprefix_chr = bamset$outprefix_chr
-    muse_calls <- paste0(bamset$outprefix_chr, ".MuSE.txt")
-    muse_vcfs <- paste0(bamset$outprefix_chr, ".vcf")
-    cmd_calls = glue("module load MuSE/1.0rc;MuSE call -O {outprefix_chr} -f {ref_fasta} {tumor_bam} {normal_bam} {intervals}")
+    # intervals = bamset$intervals %>% paste0("-r ", .)
+    muse_calls <- paste0(bamset$outprefix_interval, ".MuSE.txt")
+    cmd_calls = glue("module load MuSE/1.0rc;MuSE call -O {bamset$outprefix_interval} -f {ref_fasta} {tumor_bam} {normal_bam} {bamset$intervals}")
+    if(variant_calling_mode == "pon") 
+      cmd_calls = glue("module load MuSE/1.0rc;MuSE call -O {bamset$outprefix_interval} -f {ref_fasta} {tumor_bam} {intervals}")
+
+    # we should combine them all, so that we get the sample specific error model
+    # muse_vcfs <- paste0(bamset$outprefix_interval, ".vcf")
+    muse_call <- paste0(trk_tum$muse_outprefix_paired, ".MuSE.txt")
+    fls = paste0(muse_calls, collapse = " ")
+    cmd_mrg_call = glue("cat {fls} > {muse_call}")
     # ./MuSE sump -I Output.Prefix.MuSE.txt -G –O Output.Prefix.vcf –D dbsnp.vcf.gz
     # -E: whole exome
-    cmd_sumps = glue("MuSE sump -I {muse_calls} -E -O {muse_vcfs} -D {mutect1_germline_vcf}")
+    muse_vcf = trk_tum$muse_vcf[i]
+    cmd_sump = glue("module load MuSE/1.0rc;MuSE sump -I {muse_call} -E -O {muse_vcf} -D {mutect1_germline_vcf}")
 
     # merge VCF (using GATK)
-    muse_vcfs_i = paste0(muse_vcfs, collapse = " -I ")
-    muse_vcf = glue("{outprefix}.vcf.gz")
-    cmd_mergevcf = glue(
-          "{gatk4_exe} --java-options {java_mem_str} GatherVcfs -I {muse_vcfs_i} -O {muse_vcf}; ",
-          "{gatk4_exe} IndexFeatureFile -I {muse_vcf}")
+    # muse_vcfs_i = paste0(muse_vcfs, collapse = " -I ")
+    # cmd_mergevcf = glue(
+    # "{gatk4_exe} --java-options {java_mem_str} GatherVcfs -I {muse_vcfs_i} -O {muse_vcf}; ",
+    # "{gatk4_exe} IndexFeatureFile -I {muse_vcf}")
 
     # call it merge, since one depends on the other
-    cmds <- list(muse.splt = glue("{cmd_calls};{cmd_sumps}"),
-                 muse.mrg = cmd_mergevcf)
+    cmds <- list(muse.splt = cmd_calls,
+                 muse.mrg = c(cmd_mrg_call, cmd_sump))
     flowmat = to_flowmat(cmds, samplename = samplename) %>%
         mutate(cmd = as.character(cmd))
     outfiles = list(muse_vcf = muse_vcf)
@@ -89,7 +102,7 @@ muse <- function(
   flowmat = out$flowmat %>% bind_rows()
   outfiles = out$outfiles
 
-  return(list(flowmat = flowmat, outfiles = outfiles))
+  return(list(flowmat = flowmat, outfiles = outfiles, trk = trk))
 }
 
 # Usage:   MuSE sump [options]

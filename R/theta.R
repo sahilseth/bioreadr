@@ -5,6 +5,30 @@
 # get the repo as well:
 # git clone https://github.com/raphael-group/THetA.git
 
+# example ---------
+# --NO_MULTI_EVENT: should be false, allow multi events at same intervals
+# RunTHetA.py example/Example.intervals --TUMOR_FILE example/TUMOR_SNP.formatted.txt --NORMAL_FILE example/NORMAL_SNP.formatted.txt --BAF -p example2 -n 2 --NUM_PROCESSES 8
+# bash example2.RunN3.bash
+# python ~/apps/theta/THetA/python/RunBAFModel.py example/TUMOR_SNP.formatted.txt example/NORMAL_SNP.formatted.txt example/Example.intervals example2.BEST.results -O example/
+
+theta_prep_filenms <- function(trk, thetadir){
+    trk %<>%
+        mutate(
+            # skip taking basename of bam!
+            # bam = basename(bam),
+            # oprefix = glue("{outpath}{name}"),
+            theta_oprefix = glue("{thetadir}/{outprefix_paired}"),
+            theta_cnr_file = glue("{theta_oprefix}.input"),
+            theta_hets_file = glue("{theta_oprefix}.hets_theta.tsv"),
+            theta_hets_n_file = glue("{theta_oprefix}.hets.normal_theta.tsv"),
+            theta_results2 = glue("{theta_oprefix}.n2.igv.seg"),
+            theta_results3 = glue("{theta_oprefix}.n3.igv.seg"),
+            theta_fitfl = glue("{theta_oprefix}.df_fit_summary.tsv"),
+            theta_results = glue("{theta_oprefix}.BEST.results")
+        )
+    trk
+}
+
 # positional arguments:
 #   QUERY_FILE            Interval file
 
@@ -53,21 +77,18 @@
 #                         for THetA analysis.
 #   NO_CLUSTERING       Option to run THetA without clustering.
 
-theta <- function(trk, samplename,
+theta_matched <- function(trk, samplename,
                   funr_exe = opts_flow$get("R_funr_exe"),
+                  theta_exe = opts_flow$envir$theta_exe,
                   thetadir = pipe_str$theta$dir,
                   theta_opts = opts_flow$envir$theta_opts
-
-
 ){
 
     # print function name
     # message(match.call()[1], " ", appendLF = F)
     check_args()
 
-    flog.debug(paste0("Generating a titancna_somatic_matched flowmat for sample: ", samplename))
-
-
+    flog.debug(paste0("Generating a theta_matched flowmat for sample: ", samplename))
     # check generic columns
     trk = metadata_for_dnaseq_tools(trk)
     # we would use
@@ -85,52 +106,74 @@ theta <- function(trk, samplename,
     #   cnr file is coming from some other tool
 
     # ceate a new trk with ALL reqd files
-    trk %<>%
-        mutate(
-            # skip taking basename of bam!
-            # bam = basename(bam),
-            # oprefix = glue("{outpath}{name}"),
-            theta_oprefix = glue("{thetadir}/{outprefix}"),
-            theta_cnr_file = glue("{thetadir}/{outprefix}.denoisedCR_theta.tsv"),
-            theta_hets_file = glue("{thetadir}/{outprefix_paired}.hets_theta.tsv"),
-            theta_hets_n_file = glue("{thetadir}/{outprefix_paired}.hets.normal_theta.tsv")
-        )
-    trk
+    flog.debug(paste0("Generating a filenames flowmat for sample"))
+    trk = theta_prep_filenms(trk, thetadir)
 
     trk_tum = filter(trk, normal == "NO")
     trk_norm = filter(trk, normal == "YES")
 
-    # ** prep inputs -
-    # opts_flow$load_toml("../flowr_conf.toml")
-    cnr_file = trk_tum$gatkcnv_dn_cr
-    gatkcnv_cnts = trk_tum$gatkcnv_cnts
-    theta_cnr_file = trk_tum$theta_cnr_file
-    cmd_prep_cnr = glue("{funr_exe} my.ultraseq::to_theta_cn_file.gatkcnv cnr_file={cnr_files} theta_cnr_file={theta_cnr_file} gatkcnv_cnts={gatkcnv_cnts}")
-    
-    hets_files = c(trk_tum$gatkcnv_hets, trk_tum$gatkcnv_hets_n)
-    theta_hets_files = c(trk_tum$theta_hets_file, trk_tum$theta_hets_n_file)
-    cmd_prep_hets = glue("{funr_exe} my.ultraseq::to_theta_het_file.gatkcnv hets_file={hets_files} theta_hets_file={theta_hets_files}")
+    # ** pileup cmds -------
+    cmd_pileup = theta_create_mpileup(trk$bam)
+    cmd_rm_pileup = theta_rm_pileup(trk$bam)
 
+    # ** prep inputs ----------
+    i <- 1
+    tmp = lapply(1:nrow(trk_tum), function(i){
+        # opts_flow$load_toml("../flowr_conf.toml")
+        theta_oprefix = trk_tum$theta_oprefix[i]
+        cnr_file = trk_tum$gatkcnv_dn_cr[i]
+        gatkcnv_cnts = trk_tum$gatkcnv_cnts[i]
+        theta_cnr_file = trk_tum$theta_cnr_file[i]
+        segfile = trk_tum$gatkcnv_cr_seg[i]
+        # cmd_prep_cnr = glue("{funr_exe} my.ultraseq::to_theta_cn_file.gatkcnv cnr_file={cnr_files} theta_cnr_file={theta_cnr_file} gatkcnv_cnts={gatkcnv_cnts}")
+        cmd_prep_cnr = theta_create_exome_input(
+            segfile = segfile,
+            tumor_bam = trk_tum$bam[i],
+            normal_bam = trk_norm$bam[1], 
+            theta_oprefix = theta_oprefix,
+            thetadir = thetadir)
+        cmd_prep_cnr = glue("{cmd_prep_cnr};cp {segfile} {thetadir}/")
 
-    # install.my.ultra
-    cmds_prep = c(cmd_prep_cnr, cmd_prep_hets)
-    # lapply(cmds_prep, system)
+        hets_files = c(trk_tum$gatkcnv_hets[i], trk_tum$gatkcnv_hets_n[i])
+        theta_hets_files = c(trk_tum$theta_hets_file[i], trk_tum$theta_hets_n_file[i])
+        cmd_prep_hets = glue("{funr_exe} my.ultraseq::to_theta_het_file.gatkcnv hets_file={hets_files} theta_hets_file={theta_hets_files}")
+        cmd_prep_hets
 
-    # RunTHetA.py
-    theta_exe = "conda activate theta_py27;RunTHetA.py"
-    theta_opts = "--NUM_PROCESSES 5"
-    oprefix = trk_tum$theta_oprefix
-    cmd_theta = glue("{theta_exe} {theta_cnr_file} --TUMOR_FILE {theta_hets_files[1]} --NORMAL_FILE {theta_hets_files[2]} -p {oprefix} {theta_opts}")
-    cmd_theta
+        # install.my.ultra
+        cmds_prep = c(cmd_prep_cnr, cmd_prep_hets)
+        # lapply(cmds_prep, system)
 
-    if(FALSE){
-        to_theta_cn_file.gatkcnv(cnr_files, gatkcnv_cnts, theta_cnr_file)
-        to_theta_het_file.gatkcnv(hets_files[1], theta_hets_files[1])
-        to_theta_het_file.gatkcnv(hets_files[2], theta_hets_files[2])
-        # RunTHetA.py theta/IPCT-S4013-MOON0051-Cap2531-4-HTID254.denoisedCR_theta.tsv --TUMOR_FILE theta/IPCT-S4013-MOON0051-Cap2531-4-HTID254___matched.hets_theta.tsv --NORMAL_FILE theta/IPCT-S4013-MOON0051-Cap2531-4-HTID254___matched.hets.normal_theta.tsv -p theta/IPCT-S4013-MOON0051-Cap2531-4-HTID254 --NUM_PROCESSES 5
+        # RunTHetA.py
+        # theta_exe = "conda activate theta_py27;RunTHetA.py"
+        # theta_opts = "--NUM_PROCESSES 5"
+        cmd_theta = glue("{theta_exe} {theta_cnr_file} --TUMOR_FILE {theta_hets_files[1]} --NORMAL_FILE {theta_hets_files[2]} -p {theta_oprefix} {theta_opts} --BAF")
+        cmd_theta
+        cmd_parse_theta = glue("{funr_exe} my.ultraseq::read_theta.results oprefix={theta_oprefix} path=.")
 
-    }
+        # theta_baf_model_exe = "python ~/apps/theta/THetA/python/RunBAFModel.py"
+        # cmd_baf = glue("{theta_baf_model_exe} {theta_hets_files[1]} {theta_hets_files[2]} {theta_cnr_file} {oprefix.BEST.results} -O {thetadir}")
+        # to_theta_cn_file.gatkcnv(cnr_files, gatkcnv_cnts, theta_cnr_file)
+        # to_theta_het_file.gatkcnv(hets_files[1], theta_hets_files[1])
+        # to_theta_het_file.gatkcnv(hets_files[2], theta_hets_files[2])
 
+        cmds <- list(cmds_prep = cmds_prep,
+                     cmd_theta = cmd_theta, 
+                     cmd_parse_theta = cmd_parse_theta,
+                     outfiles = list(trk_tum$theta_results))
+    })
+    lst = purrr::transpose(tmp)
+    cmds = list(theta.prep = cmd_pileup, 
+                theta.mrg = c(unlist(lst$cmds_prep), 
+                              unlist(lst$cmd_theta), 
+                              unlist(lst$cmd_parse_theta), 
+                              cmd_rm_pileup))
+    # write_tsv(df_trk, path = "gatkcnv/df_trk.tsv")
+
+    # cmds %>% unlist() %>% paste0(collapse = "\n") %>% cat()
+    lst$flowmat = to_flowmat(cmds, samplename = samplename) %>%
+        mutate(cmd = as.character(cmd))
+    lst$trk = trk
+    return(lst)
 }
 
 # 1. Create an interval_count_file:
@@ -164,37 +207,7 @@ theta <- function(trk, samplename,
 # 		 Whole-exome data (with specific support for ExomeCNV and EXCAVATOR)
 # 		 into THetA input.
 
-#' to_theta_cn_file.gatkcnv
-#'
-#' @param hets_file
-#' @param titan_hets_file
-#'
-#' @export
-to_theta_cn_file.gatkcnv <- function(cnr_file,
-                                     gatkcnv_cnts,
-                                     theta_cnr_file) {
-    
-    # these are centered around 0
-    # summary(df_cnr$log2_copy_ratio)
-    #  Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
-    # -30.00634  -0.21394   0.00006   0.02714   0.22351   4.79311 
-    df_cnr = read_counts(cnr_file)
-    df_cnts = read_counts(gatkcnv_cnts)
-    df_cnr = left_join(df_cnr, df_cnts, by = c("contig", "start", "end"))
-    df_cnr %<>% 
-        mutate(count, normal_count = count*(1/(2^log2_copy_ratio)),
-            # conv DP to actual count
 
-               normal_count = as.integer(normal_count),
-               # interval_id = glue("{contig}:{start}-{end}"),
-               id = 1:n(), cr_calc = log2(count/normal_count)) 
-    head(df_cnr, 100)
-    # cor.test(df_cnr$log2_copy_ratio, df_cnr$cr_calc)
-    df_cnr %<>% select(id, contig, start, end, tumor_count = count, normal_count)
-    colnames(df_cnr)[1] = "#id"
-
-    write_tsv(df_cnr, theta_cnr_file)
-}
 
 # Format 1: A tab (or comma) delimited file with the following columns
 # (1) chromosome (Integer) - Chromosome on which a germline SNP may occur.
@@ -244,9 +257,232 @@ to_theta_het_file.gatkcnv <- function(hets_file, theta_hets_file) {
 #         OUTPUT:
 #         * theta_input: a file that is properly formatted as input to the THetA algorithm
 # this operates on already segmented input from GATKCNV, which is perfect
-theta_create_exome_input <- function(){
-    #  -s gatkcnv/IPCT-S4013-MOON0051-Cap2531-4-HTID254___matched.called.igv.seg -t IPCT-S4013-MOON0051-Cap2531-4-HTID254_ngs-pipe-2-GCTACTGA.bwa_recalibed.bam -n IPCT-S4012-MOON0051-Cap2509-8-HTID373_ngs-pipe-2-GGCAGTCTCTGG.bwa_recalibed.bam --FA /rsrch3/home/iacs/sseth/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta --EXON_FILE /rsrch3/home/iacs/sseth/ref/az_ref_beds/ss_downloads/SeqCapEZ_Exome_v3.0_Design_Annotation_files/SeqCap_EZ_Exome_v3_hg19_capture_targets_pad250.bed 
-    theta_exome_input_exe = "~/apps/theta/THetA/bin/CreateExomeInput"
-    segfile = 
-    glue("{theta_exome_input_exe}")
+
+# etadata (current_repodata.json): done
+# https://github.com/biod/sambamba/wiki/%5Bsambamba-mpileup%5D-documentation
+theta_create_mpileup <- function(bam, odir = pipe_str$theta$dir, 
+                                quality = 30,
+                                sambamba_exe = "/rsrch3/home/iacs/sseth/apps/sambamba/sambamba-0.7.1-linux-static",
+                                ref_fasta = opts_flow$envir$ref_fasta,
+                                cores = opts_flow$envir$theta_pileup_cores,
+                                bed = opts_flow$envir$gatkcnv.intervals_bed
+                                ){
+    # bam = trk$bam[2] %>% basename()
+    check_args()
+    prefix = basename(bam) %>% tools::file_path_sans_ext()
+    pileup = glue("{odir}/{prefix}.pileup")
+    log = glue("{pileup}.log")
+
+    cmd = glue("module load samtools/1.10 bcftools/1.10.2;",
+            "{sambamba_exe} mpileup -t {cores} -L {bed} {bam} --samtools '-f {ref_fasta} -q {quality}' > {pileup};echo $? > {log}")
+    cmd
+       
+}
+
+theta_rm_pileup <- function(bam, odir = pipe_str$theta$dir){
+
+    prefix <- basename(bam) %>% tools::file_path_sans_ext()
+    pileup <- glue("{odir}/{prefix}.pileup")
+    cmd = glue("rm -rf {pileup}")
+    cmd
+}
+
+theta_create_exome_input <- function(
+    segfile = trk_tum$gatkcnv_cr_seg,
+    tumor_bam = trk_tum$bam[1],
+    normal_bam = trk_norm$bam[1],
+    theta_oprefix, thetadir,
+    theta_exome_input_exe = opts_flow$envir$theta_exome_input_exe,
+    ref_fasta = opts_flow$envir$ref_fasta,
+    gatkcnv_intervals_bed = opts_flow$envir$gatkcnv_intervals_bed
+){
+    check_args()
+    #  --FA /rsrch3/home/iacs/sseth/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta --EXON_FILE /rsrch3/home/iacs/sseth/ref/az_ref_beds/ss_downloads/SeqCapEZ_Exome_v3.0_Design_Annotation_files/SeqCap_EZ_Exome_v3_hg19_capture_targets_pad250.bed 
+    # only uses start stop positions
+    theta_oprefix = basename(as.character(theta_oprefix))
+    cmd = glue("{theta_exome_input_exe} -s {segfile} -t {tumor_bam} -n {normal_bam} --FA {ref_fasta} --EXON_FILE {gatkcnv_intervals_bed} --OUTPUT_PREFIX {theta_oprefix} --DIR {thetadir} --QUALITY 30")
+    return(cmd)
+}
+
+# the results from this are NOT the same, unfortunately
+theta_create_exome_input.gatk <- function(){
+    setwd("~/flows/SS/tnbc/ms51_wex/ss_cl_het/runs/185_003/tmp")
+    t_cnts = "gatkcnv/IPCT-S2006-MOON0051-Cap2023-8-ID01.counts.tsv" %>% 
+        read_counts() %>% mutate(width = end-start)
+    n_cnts = "gatkcnv/IPCT-S4008-MOON0051-Cap2043-4-ID01.counts.tsv" %>%
+        read_counts() %>% mutate(width = end - start)
+    seg = "gatkcnv/IPCT-S4008-MOON0051-Cap2043-4-ID01___matched.called.igv.seg" %>%
+        read_counts()
+
+    # for every seg, merge counts:
+    i=2
+    seg2 = lapply(1:nrow(seg), function(i){
+        segi = seg[i,]
+        tumor_count = filter(t_cnts, 
+                            contig == segi$chromosome,
+                            start >= segi$start,
+                            end <= segi$end) %>% 
+                    summarize(count = sum(count))
+        normal_count = filter(n_cnts, 
+                            contig == segi$chromosome,
+                            start >= segi$start,
+                            end <= segi$end) %>% 
+                    summarize(count = sum(count))
+        segi$tumorCount = tumor_count$count
+        segi$normalCount = normal_count$count
+        segi
+    }) %>% bind_rows()
+    seg2 %>% mutate(ID = glue("start_{chromosome}_{start}:end_{chromosome}_{end}")) %>% 
+        select(chrm = chromosome, start, end, tumorCount, normalCount, segment_mean) %>% 
+        data.frame() %>% head()
+    
+
+}
+
+.read_theta.results <- function(x, y, df_seg, oprefix){
+    res = data.table::fread(x, data.table = F) %>% 
+        clean_names()
+    # res2 = read_tsv(y) %>% clean_names
+
+    # neg log lik of the fit
+    nll = res$number_nll
+
+    # purity
+    mu = res$mu %>% stringr::str_split(pattern = ",") %>% unlist()
+    mu_normal = mu[1] %>% as.numeric()
+    mu_tumor = mu[-1] %>% as.numeric()
+
+    # inferred interval CN
+    cn = res$c %>% stringr::str_split(pattern = ":") 
+    df_seg$cn = cn[[1]]
+    df_seg %<>% tidyr::separate(cn, c("cn_cl1", "cn_cl2"), sep = ",", fill = "right") %>% 
+        dplyr::mutate(samplename = oprefix, cn_cl1 = as.integer(cn_cl1), cn_cl2 = as.integer(cn_cl2)) %>% 
+        dplyr::rowwise() %>% 
+        dplyr::mutate(total_cn = sum(cn_cl1, cn_cl2, na.rm = T), num_marks = NA, num_clones = length(mu_tumor)) %>% 
+        dplyr::select(samplename, chr = chrm, start, end, num_marks, total_cn, everything())
+
+    # multinomial param:
+    p = res$p %>% stringr::str_split(pattern = ",") %>% unlist() %>% as.numeric()
+    df_seg$p = p
+
+    readr::write_tsv(df_seg, y)
+
+    list(df_seg = df_seg, pct_purity = mu_tumor, pct_normal = mu_normal, nll = nll)
+}
+
+# results files: the set of all maximum likelihood solutions found.
+# 	  Each solution will be a single line in this file with fields:
+# 		1. NLL (Double) - solution neg. log likelihood (w/o constants)
+# 		2. mu  (Double,Double) - comma delimited list:  %normal, %tumor
+# 		3. C_2 (Integer: ... :Integer) - colon delimited list of
+# 		   inferred tumor interval copy numbers.  When multiple tumor
+# 		   populations are inferred this list is in the form
+# 		   (Integer,Integer: ... : Integer, Integer).
+# 		4. p* (Double, ... ,Double) - comma delimted list of inferred
+# 		   multinomial parameter \widehat{C\mu}
+# 		The chosen solution will be in a file with postfix ".BEST.results".
+# 		THetA will also output the individual solutions for n=2 and n=3 in
+# 		in files ending in ".n3.results" and ".n3.results" respectively
+
+#' to_theta_cn_file.gatkcnv
+#'
+#' @param oprefix expecting files named `{path}/{oprefix}.input"`,  `{path}/{oprefix}.n2.results"` etc.
+#' @param path output dir, can be ".", or ""
+#'
+#' @export
+read_theta.results <- function(oprefix, path){
+    # path = "/rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/ss_cl_het/runs/185_057/tmp/theta"
+    # oprefix = "IPCT-S4013-MOON0051-Cap2531-4-HTID254___matched"
+    # list.files(path)
+
+    # setwd(path)
+    input = glue("{path}/{oprefix}.input")
+    flog.debug(glue("working on: {input}"))
+
+    # https://software.broadinstitute.org/software/igv/sites/cancerinformatics.org.igv/files/linked_files/example.seg
+    clnms = c("n2", "n3")
+    xs = glue("{path}/{oprefix}.{clnms}.results") %>% as.character()
+    ys = glue("{path}/{oprefix}.{clnms}.igv.seg") %>% as.character()
+    fitfl = glue("{path}/{oprefix}.df_fit_summary.tsv") %>% as.character()
+
+    df_seg <- read_counts(input) %>% clean_names()
+    lst = purrr::map2(xs, ys, .read_theta.results, df_seg, oprefix)
+    lst = purrr::transpose(lst)
+    lst$df_seg %>% bind_rows()
+
+    df_mod = data.frame(n_clones = c(2, 3),
+                        pct_normal = lst$pct_normal %>% unlist(),
+                        nll = lst$nll %>% unlist(), 
+                        n_segments = nrow(df_seg)) %>% as_tibble() %>% 
+            mutate(pct_normal = round(pct_normal, 3), 
+                   seg = basename(ys),
+                   oprefix = oprefix, 
+                   final_model = nll == max(nll)) %>% arrange(-nll)
+    df_mod
+    write_tsv(df_mod, fitfl)
+
+    list(df_mod = df_mod, df_seg = df_seg)
+}
+
+if(FALSE){
+    con = db_connect_art(type = "postgres")
+    dbListTables(con)
+    p_load(dbx)
+    p_load(purrr)
+
+    # 23 samples fail because of lack of enough CNV
+    df_trk_tum = tidylog::filter(df_trk, normal == "NO") %>% 
+        mutate(theta_results_full = glue("{individual}/tmp/{theta_results}")) %>% 
+        tidylog::filter(file.exists(theta_results_full))
+    getwd()
+    flog.threshold(DEBUG)
+    lst = future_map2(df_trk_tum$outprefix_paired, file.path(df_trk_tum$individual, "tmp/theta"), read_theta.results, .progress = TRUE)
+    lst2 = transpose(lst)
+    df_mod = lst2$df_mod %>% bind_rows()
+    df_mod2 = df_mod %>% filter(final_model)
+
+    # add these to the DB
+    df_mod2 %>% mutate(tool = "theta2", version = "1.1", purity = 1-pct_normal) %>% 
+        left_join(df_trk_tum, by = c("oprefix" = "outprefix_paired")) %>% 
+        select(path_patient_id = individual, sample_type, seq_sample_id = outprefix, outprefix_paired = oprefix, 
+                tool, version,
+                n_clones, purity, n_segments, score = nll) %>% 
+        dbxUpsert(con, "wex_cnv_insights", ., where_cols = c("outprefix_paired","tool", "version"))
+    write_rds(lst, "/rsrch3/scratch/iacs/sseth/flows/SS/tnbc/ms51_wex/ss_cl_het/theta_v1.1/lst_theta_results.rds")
+    # then add titan to DB as well
+}
+
+
+
+# EXTRA ------
+#' to_theta_cn_file.gatkcnv
+#'
+#' @param hets_file
+#' @param titan_hets_file
+#'
+#' @export
+to_theta_cn_file.gatkcnv <- function(cnr_file,
+                                     gatkcnv_cnts,
+                                     theta_cnr_file) {
+    
+    # these are centered around 0
+    # summary(df_cnr$log2_copy_ratio)
+    #  Min.   1st Qu.    Median      Mean   3rd Qu.      Max. 
+    # -30.00634  -0.21394   0.00006   0.02714   0.22351   4.79311 
+    df_cnr = read_counts(cnr_file)
+    df_cnts = read_counts(gatkcnv_cnts)
+    df_cnr = left_join(df_cnr, df_cnts, by = c("contig", "start", "end"))
+    df_cnr %<>% 
+        mutate(count, normal_count = count*(1/(2^log2_copy_ratio)),
+            # conv DP to actual count
+
+               normal_count = as.integer(normal_count),
+               # interval_id = glue("{contig}:{start}-{end}"),
+               id = 1:n(), cr_calc = log2(count/normal_count)) 
+    head(df_cnr, 100)
+    # cor.test(df_cnr$log2_copy_ratio, df_cnr$cr_calc)
+    df_cnr %<>% select(id, contig, start, end, tumor_count = count, normal_count)
+    colnames(df_cnr)[1] = "#id"
+
+    write_tsv(df_cnr, theta_cnr_file)
 }

@@ -61,7 +61,7 @@ merge_all_calls_mutect_pindel <- function(trk,
   # write_tsv(df_variants_bed, "ssm/df_mutect_pindel_uniq.bed")
   
   # convert to VCF -----
-  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/mutect_ann_to_maf.R')
+  source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/mutect_ann_to_maf.R')
   # debug(mutect_ann_to_maf)
   combined_maf = "ssm/merged_variants.maf"
   combined_vcf = "ssm/merged_variants.vcf"
@@ -84,10 +84,6 @@ merge_all_calls_mutect_pindel <- function(trk,
   # call mutect2 on all samples
   # get final calls for ALL samples!
   
-  
-  
-  
-  
 }
 
 
@@ -109,6 +105,7 @@ if(FALSE){
   
   
 }
+
 
 
 phylowgs_parse_cnvs <- function(){
@@ -160,6 +157,8 @@ phylowgs.titancna <- function(trk, samplename,
                         "titan_optimal_cluster_file",
                         "titan_phylowgs_input",
                         "filtered_vcf"))
+  trk = ssm_prep_file_names(trk)
+
   trk = filter(trk, normal == "NO")
 
   titan_optimal_cluster_file = trk$titan_optimal_cluster_file
@@ -226,7 +225,7 @@ phylowgs.titancna <- function(trk, samplename,
                   results = "{pwgsdir}/results",
                   report = "{pwgsdir}/report")
   
-  list(flowmat = flowmat, outfiles = outfiles)
+  list(flowmat = flowmat, outfiles = outfiles, trk = trk)
   
 }  
 

@@ -107,7 +107,7 @@ preprocess.gatk_v2 <- function(bam,
 ){
   
   check_args(ignore = "outfile")
-  source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/bam_set.R')
+  # source('~/Dropbox/public/flowr/ultraseq/ultraseq/R/bam_set.R')
   bamset = bam_set(bam = bam, 
                    outprefix = outfile, 
                    ref_fasta_path = ref_fasta_path, 
@@ -271,7 +271,7 @@ preprocess.gatk_v4 <- function(bam,
   
   check_args(ignore = "outfile")
 
-  source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/bam_set.R')
+  # source('~/Dropbox/public/flowr/ultraseq/ultraseq/R/bam_set.R')
   bamset = bam_set(bam = bam, outfile = outfile, ref_fasta_path = ref_fasta, split_by_chr = split_by_chr)
   
   # get the name of the function
