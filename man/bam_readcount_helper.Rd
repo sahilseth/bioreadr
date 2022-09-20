@@ -32,9 +32,6 @@ bam_readcount_helper(
 
 \item{bam_readcount_helper_py}{}
 }
-\value{
-
-}
 \description{
 bam_readcount_helper
 }

@@ -9,7 +9,7 @@ bam_set(
   outprefix,
   ref_fasta,
   interval_split,
-  split_by = c("none", "chr_len", "interval_split", "chr")
+  split_by = c("none", "chr_len", "interval_split", "chr", "interval_split_bed")
 )
 }
 \arguments{
@@ -22,9 +22,6 @@ bam_set(
 \item{interval_split}{}
 
 \item{split_by}{}
-}
-\value{
-
 }
 \description{
 bam_set

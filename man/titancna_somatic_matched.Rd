@@ -10,8 +10,10 @@ titancna_somatic_matched(
   run_cmds = F,
   funr_exe = opts_flow$get("R_funr_exe"),
   num_cores = 4,
-  rscript_exe = opts_flow$envir$R.sing_rscript,
-  titandir = pipe_str$titancna$dir,
+  rscript_exe = opts_flow$envir$R35_script,
+  titancna_dir = pipe_str$titancna$dir,
+  titancna_exe = opts_flow$envir$titancna_exe,
+  titancna_centromere_gap_fl = opts_flow$envir$titancna_centromere_gap_fl,
   titancna_cluster_min = opts_flow$envir$titancna_cluster_min,
   titancna_cluster_max = opts_flow$envir$titancna_cluster_max,
   titancna_opts = opts_flow$envir$titancna_opts

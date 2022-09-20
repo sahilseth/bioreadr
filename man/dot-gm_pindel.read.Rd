@@ -9,9 +9,6 @@
 \arguments{
 \item{fl}{read a single pindel file}
 }
-\value{
-
-}
 \description{
 .gm_pindel.read
 }

@@ -20,6 +20,7 @@ mutect1.7(
   mutect1_germline_vcf = opts_flow$get("mutect1_germline_vcf"),
   mutect1_cosmic_vcf = opts_flow$get("mutect1_cosmic_vcf"),
   mutect1_pon_vcf = opts_flow$get("mutect1_pon_vcf"),
+  mutect1_dir = pipe_str$mutect1$dir,
   interval_split = opts_flow$get("mutect1_intervals")
 )
 }

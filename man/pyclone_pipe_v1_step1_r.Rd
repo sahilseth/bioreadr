@@ -8,9 +8,11 @@ pyclone_pipe_v1_step1_r(
   trk,
   bamreadcount_exe = opts_flow$get("bamreadcount_exe"),
   fa_fl = opts_flow$get("ref_fasta"),
+  pyclonedir = pipe_str$pyclone_purecn$dir,
   pyclone_params = opts_flow$get("pyclone_params"),
   segfl_type = opts_flow$get("segfl_type"),
   mutfl_type = opts_flow$get("mutfl_type"),
+  bam_readcount_r_func = c(bam_readcount_r.ssm, bam_readcount_r.mutect),
  
     conf = "~/Dropbox/public/flow-r/my.ultraseq/pipelines/dnaseq/facets_pyclone/facets_pyclone_citup_v1.conf"
 )

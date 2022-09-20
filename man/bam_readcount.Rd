@@ -2,12 +2,7 @@
 % Please edit documentation in R/bam_readcount.R
 \name{bam_readcount}
 \alias{bam_readcount}
-\title{Question: How To Fix A Bam-Readcount Sm Error: "Couldn'T Grab Single-End Mapping Quality For Read"
-This error message has to do with the SM tags on the read which is the single-ended mapping quality. 
-Some aligners do not report this so bam-readcount reports this warning when it cannot grab the value. 
-It does not invalidate your results and you can safely ignore this error, 
-but you should not use the single ended mapping quality field of the output.
-Run BAM readcount}
+\title{Run BAM readcount}
 \usage{
 bam_readcount(
   bam,
@@ -15,7 +10,7 @@ bam_readcount(
   bed,
   outfile,
   fa_fl = "~/ref/human/b37/fastas/Homo_sapiens_assembly19.fasta",
-  bamreadcount_exe = "bam-readcount"
+  bamreadcount_exe = "~/apps/conda/3/envs/bamreadcount/bin/bam-readcount"
 )
 }
 \arguments{
@@ -32,11 +27,6 @@ bam_readcount(
 \item{bamreadcount_exe}{something}
 }
 \description{
-Question: How To Fix A Bam-Readcount Sm Error: "Couldn'T Grab Single-End Mapping Quality For Read"
-This error message has to do with the SM tags on the read which is the single-ended mapping quality. 
-Some aligners do not report this so bam-readcount reports this warning when it cannot grab the value. 
-It does not invalidate your results and you can safely ignore this error, 
-but you should not use the single ended mapping quality field of the output.
 Run BAM readcount
 }
 \details{

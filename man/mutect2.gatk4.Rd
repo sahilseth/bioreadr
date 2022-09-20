@@ -19,6 +19,8 @@ Below is a step-by-step breakdown of the Best Practices workflow, with a detaile
 
 \item{mem_mutect}{amount of memory to be used by mutect [-Xmx12g]}
 
+\item{pon_m2_vcf}{}
+
 \item{tumor_bam}{path to a tumor bam file}
 
 \item{normal_bam}{path to a normal bam file}
@@ -46,8 +48,6 @@ Below is a step-by-step breakdown of the Best Practices workflow, with a detaile
 \item{mutect2_opts}{}
 
 \item{mutect2_create_bam_out}{}
-
-\item{pon_m2_vcf}{}
 
 \item{germline_vcf}{}
 
