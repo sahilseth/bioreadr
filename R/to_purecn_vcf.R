@@ -6,15 +6,6 @@
 
 if(FALSE){
   
-  tumor_name = "WEX-1711-T"
-  normal_name = "WEX-1711-N" 
-  tsv = "/rsrch3/scratch/iacs/sseth/flows/SS/sarco/mda/wex/ssm/m1_m2_ir/filtered/WEX-1711-T___matched_mrgd_pcgr.rds"
-  gatkcnv_hets = "/rsrch3/scratch/iacs/sseth/flows/SS/sarco/mda/wex/gatkcnv_v3/WEX-1711-T___matched.hets.tsv"
-  gatkcnv_hets = "/rsrch3/scratch/iacs/sseth/flows/SS/sarco/mda/wex/gatkcnv_v4/WEX-1711"
-  # gatkcnv_hets_n = "/rsrch3/scratch/iacs/sseth/flows/SS/sarco/mda/wex/gatkcnv_v3/WEX-1711-T___matched.hets.tsv"
-  outfile = "/rsrch3/scratch/iacs/sseth/flows/SS/sarco/mda/wex/purecn/WEX-1711-T___matched_filtered.hets.vcf"
-  
-  source('~/Dropbox/public/flowr/my.ultraseq/my.ultraseq/R/to_purecn_vcf.R')
   # debug(to_purecn_vcf)
   to_purecn_vcf(tsv, gatkcnv_hets, tumor_name, normal_name, outfile)
   vcf <- PureCN:::.readAndCheckVcf(outfile)

@@ -207,7 +207,7 @@
 # nspl	number of splice site mutations
 # nind	number of indels
 
-read_mutsigcv <- function(path = "~/projects2/ss_tnbc/analysis/art/integrative/paper_t0/ssm/mutsig/maf_t0_gb_gc"){
+read_mutsigcv <- function(path = "~/maf_t0_gb_gc"){
   patient_counts_and_rates = read_tsv(glue("{path}/patient_counts_and_rates.txt"))
   n_samples = nrow(patient_counts_and_rates)
 

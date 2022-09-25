@@ -1,7 +1,6 @@
 
 
 if(FALSE){
-    tab = read.table("/scratch/iacs/gcc/Sarcomatoid/ion_reporter/merged.tsv", sep ="\t", header = TRUE, stringsAsFactors = FALSE)
     x = tab
 }
 
@@ -42,7 +41,7 @@ mk_intervals <- function(x, ## a table with 1st col for chr followed by start an
 
 
 ## This used gatk depth of coverage to get coverage and base count using bam and bed file
-"module load jdk/1.7.0_79"
+# "module load jdk/1.7.0_79"
 count_bases <- function(
     bam,
     intervals,

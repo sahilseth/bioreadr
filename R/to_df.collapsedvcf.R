@@ -212,18 +212,13 @@ if(FALSE){
   library(pacman)
   p_load(VariantAnnotation, dplyr, magrittr, readr, janitor)
   p_load(flowr)
-  source('~/Dropbox/public/flow-r/my.ultraseq/my.ultraseq/R/mutect2_vcf_qc.R')
-  fl_m2 = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ssm/m1_m2_ir/WEX-334187-T___matched_combvcf.vcf.gz"
   vcf_m2_f2 = VariantAnnotation::readVcf(fl_m2, "hg19")
   
   vcf_m2_f2_snv = vcf_m2_f2[isSNV(vcf_m2_f2), ]
   vcf = vcf_m2_f2_snv
   geno(header(vcf))
   # debug(to_df.CollapsedVCF)
-  df_m2_f2 = to_df(vcf_m2_f2_snv, 
-                   tumor_name = '334187-T',
-                   normal_name = '334187-N')
-  
+
   
 }
 

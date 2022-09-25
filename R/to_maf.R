@@ -610,7 +610,6 @@ if(FALSE){
   
   library(pacman)
   p_load(dplyr, readr, janitor, magrittr)
-  x = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/mutect/WEX-334187-T__WEX-334187-N_merged.muTect_call_stats.txt"
   chrom = "contig"
   start_pos = "position"
   end_pos = "position"
