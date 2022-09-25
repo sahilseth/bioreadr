@@ -1,8 +1,7 @@
-Package: my.ultraseq
+Package: bioreadr
 Type: Package
-Title: Robust Pipelines for Next-Generation Sequencing Analysis; A Companion
-    Package for flowr
-Version: 0.3.9012
+Title: Reading and Parsing ouputs from bioinformatic tools
+Version: 0.4.1
 Date: 2014-12-08
 Author: Sahil Seth
 Maintainer: Sahil Seth <sseth@mdanderson.org>
@@ -25,8 +24,6 @@ Imports:
     cowplot
 Suggests:
     Rsamtools
-Description: Provides a host of modules and pipelines supporting a host of
-    genomics data ranging from whole genome/exome sequencing, RNA-Seq and chipseq
-    etc.
+Description: Provides a set of functions to read files from various bioinformatic tools
 License: GPL
 RoxygenNote: 7.2.0
