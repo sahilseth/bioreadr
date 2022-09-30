@@ -5,3 +5,4 @@
 
 # skip this stuff
 *.DS_Store
+vignettes/.DS_Store
