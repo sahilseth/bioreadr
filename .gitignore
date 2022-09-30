@@ -2,3 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# skip this stuff
+*.DS_Store
