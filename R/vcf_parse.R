@@ -105,6 +105,8 @@ splt_vcf_info <- function(x, cores = 1){
 read_vcf <- function(x, cores = 1) {
   require(dplyr)
   require(parallel)
+  require(futile.logger)
+  require(bedr)
 
   # check if its a bedr object
   flog.info("Reading file...")
@@ -226,7 +228,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       colfunc = .get_value_type(df$Type)
       colnm = df$colnm
       # mat[, colnm] = colfunc(mat[, colnm])
-      mat %<>% mutate_at(colnm, colfunc)
+      mat %<>% dplyr::mutate_at(.vars = colnm, .funs = colfunc)
 
     }
   }
@@ -247,7 +249,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       # drop multi-allelic records
       mat <- tidyr::separate(mat, col = df$colnm, colnms_new, sep = ",", extra = "drop", fill = "right", remove = F)
       # mat[, colnms_new] <- colfunc(mat[, colnms_new])
-      mat %<>% mutate_at(colnms_new, colfunc)
+      mat %<>% dplyr::mutate_at(.vars = colnms_new, .funs = colfunc)
 
     }
   }
@@ -269,7 +271,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       colfunc = .get_value_type(df$Type)
       # mat[, df$colnm_t] = colfunc(mat[, df$colnm_t])
       # mat[, df$colnm_n] = colfunc(mat[, df$colnm_n])
-      mat %<>% mutate_at(c(df$colnm_t, df$colnm_n), colfunc)
+      mat %<>% mutate_at(.vars = c(df$colnm_t, df$colnm_n), .funs = colfunc)
     }
   }
   
@@ -285,13 +287,13 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       colnms_t_new = paste0(df$colnm_t, c("_ref", "_alt", "_alt2"))
       mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, sep = ",", extra = "drop", fill = "right", remove = F)
       # change col type:
-      mat %<>% mutate_at(colnms_t_new, colfunc)
+      mat %<>% mutate_at(.vars = colnms_t_new, .funs = colfunc)      
 
       # repeat for normal sample
       if(!is.null(ref)){
         colnms_n_new = paste0(df$colnm_n, c("_ref", "_alt", "_alt2"))
         mat = tidyr::separate(mat, col = df$colnm_n, into = colnms_n_new, sep = ",", extra = "drop", fill = "right", remove = F)
-        mat %<>% mutate_at(colnms_n_new, colfunc)
+        mat %<>% mutate_at(.vars = colnms_n_new, .funs = colfunc)
       }
       
       # mat[, colnms_t_new] = colfunc(mat[, colnms_t_new])
@@ -339,6 +341,13 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   
 }
 
+calc_taf_fwd_rev <- function(x){
+  x %>% mutate(
+    taf_fwd = t_fmt_f1r2_alt / (t_fmt_f1r2_alt + t_fmt_f1r2_ref),
+    taf_rev = t_fmt_f2r1_alt / (t_fmt_f2r1_alt + t_fmt_f2r1_ref),
+    taf_diff = abs(taf_fwd - taf_rev))
+
+}
 
 #' Parse a somatic VCF, with two samples.
 #'
