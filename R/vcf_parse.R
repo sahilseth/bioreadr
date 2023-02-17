@@ -1,12 +1,14 @@
+# job::job({p_install(SRAdb)})
+
 # generic --------
 as_n <- function(...) {
-  as.numeric(unlist(...))
+  as.numeric(gsub("\\.", NA, unlist(...)))
 }
 as_i <- function(...) {
-  as.integer(unlist(...))
+  as.integer(gsub("\\.", NA, unlist(...)))
 }
 as_c <- function(...) {
-  as.character(unlist(...))
+  as.character(gsub("\\.", NA, unlist(...)))
 }
 
 # transpose, if header info is NOT a matrix
@@ -75,6 +77,14 @@ splt_vcf_info <- function(x, cores = 1){
 }
 
 
+split_vep_consequence <- function(df, 
+                                  col,
+                                  pattern = "Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|EXON|INTRON|HGVSc|HGVSp|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|FLAGS|SYMBOL_SOURCE|HGNC_ID"){
+  col_names = strsplit(pattern, "\\|")
+  # select the first one (based on what??)
+  
+  
+}
 # funcs for specific fields -------
 .get_value_type <- function(type){
   
@@ -105,6 +115,8 @@ splt_vcf_info <- function(x, cores = 1){
 read_vcf <- function(x, cores = 1) {
   require(dplyr)
   require(parallel)
+  require(futile.logger)
+  require(bedr)
 
   # check if its a bedr object
   flog.info("Reading file...")
@@ -182,35 +194,51 @@ parse_vcf <- read_vcf
 #' @param ref name of the 'reference' sample
 #'
 #' @export
-read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
+read_vcf_somatic <- function(x, .vcf = NULL, samp = NULL, ref = NULL){
   
   
   # flog.info("Reading file...")
   # add a read_vcf function
-  vcf = read_vcf(x)
+  if(is.null(.vcf))
+    vcf = read_vcf(x)
+  else
+    vcf = .vcf
   mat = vcf$tab
   head(mat)
   
-  flog.info("switch names...")
+  flog.info("get sample names...")
   # check if this is mutect
   if(length(vcf$header$tumor_sample) > 0 & is.null(samp)){
     flog.info("picking tumor_sample from vcf")
     samp = vcf$header$tumor_sample
+    pair_type = "TO"
+    flog.info(samp)
   }
   if(length(vcf$header$normal_sample) > 0 & is.null(ref)){
     flog.info("picking normal_sample from vcf")
     ref = vcf$header$normal_sample
+    pair_type = "TN"
+    flog.info(ref)
   }
   # check_args()
   
   colnms = colnames(mat)
-  colnms_new = gsub(tolower(samp), "t", colnms)
+  
+  # ISSUE: 
+  # replace all occurance of {tumor_name} with t
+  # in case tumor name is a subset of the normal name, we will encounter a problem!
+  # lets be more specific of what columns need to be changed
+  colnms_new = gsub(glue("{tolower(samp)}_fmt"), "t_fmt", colnms)
   if(!is.null(ref))
-    colnms_new %<>% gsub(tolower(ref), "n", .)
+    colnms_new = gsub(glue("{tolower(ref)}_fmt"), "n_fmt", colnms_new)
+    # colnms_new %<>% gsub(tolower(ref), "n", .)
   colnames(mat) = colnms_new
   head(mat)
   
   flog.info("INFO: auto force column info type ...")
+  # work on integer or float columns, which have a single value
+  # no separators
+  # - there are a few cases where we have "." are supposed to be translated as NA
   vcf_header_info = vcf$header$INFO %>% t2() %>% 
     data.frame(stringsAsFactors = F) %>% 
     dplyr::mutate(colnm = paste0("info_", tolower(ID)))
@@ -226,7 +254,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       colfunc = .get_value_type(df$Type)
       colnm = df$colnm
       # mat[, colnm] = colfunc(mat[, colnm])
-      mat %<>% mutate_at(colnm, colfunc)
+      mat %<>% dplyr::mutate_at(.vars = colnm, .funs = colfunc)
 
     }
   }
@@ -247,7 +275,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       # drop multi-allelic records
       mat <- tidyr::separate(mat, col = df$colnm, colnms_new, sep = ",", extra = "drop", fill = "right", remove = F)
       # mat[, colnms_new] <- colfunc(mat[, colnms_new])
-      mat %<>% mutate_at(colnms_new, colfunc)
+      mat %<>% dplyr::mutate_at(.vars = colnms_new, .funs = colfunc)
 
     }
   }
@@ -269,7 +297,7 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       colfunc = .get_value_type(df$Type)
       # mat[, df$colnm_t] = colfunc(mat[, df$colnm_t])
       # mat[, df$colnm_n] = colfunc(mat[, df$colnm_n])
-      mat %<>% mutate_at(c(df$colnm_t, df$colnm_n), colfunc)
+      mat %<>% mutate_at(.vars = c(df$colnm_t, df$colnm_n), .funs = colfunc)
     }
   }
   
@@ -285,13 +313,13 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
       colnms_t_new = paste0(df$colnm_t, c("_ref", "_alt", "_alt2"))
       mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, sep = ",", extra = "drop", fill = "right", remove = F)
       # change col type:
-      mat %<>% mutate_at(colnms_t_new, colfunc)
+      mat %<>% mutate_at(.vars = colnms_t_new, .funs = colfunc)      
 
       # repeat for normal sample
       if(!is.null(ref)){
         colnms_n_new = paste0(df$colnm_n, c("_ref", "_alt", "_alt2"))
         mat = tidyr::separate(mat, col = df$colnm_n, into = colnms_n_new, sep = ",", extra = "drop", fill = "right", remove = F)
-        mat %<>% mutate_at(colnms_n_new, colfunc)
+        mat %<>% mutate_at(.vars = colnms_n_new, .funs = colfunc)
       }
       
       # mat[, colnms_t_new] = colfunc(mat[, colnms_t_new])
@@ -335,10 +363,32 @@ read_vcf_somatic <- function(x, samp = NULL, ref = NULL){
   # flog.info("Assembling data")
   #mat = as_tibble(cbind(mat[, colsel], tcols, ncols, infocols, funccols))
   # mat = as_tibble(cbind(mat[, colsel], tcols, ncols, infocols))
-  return(list(vcf = vcf$vcf, tab = mat, header = vcf$header))
+  return(list(vcf = vcf$vcf, tab = mat, header = vcf$header, samp = samp, ref = ref, pair_type = pair_type))
   
 }
 
+calc_taf_fwd_rev <- function(x){
+  x %>% mutate(
+    taf_fwd = t_fmt_f1r2_alt / (t_fmt_f1r2_alt + t_fmt_f1r2_ref),
+    taf_rev = t_fmt_f2r1_alt / (t_fmt_f2r1_alt + t_fmt_f2r1_ref),
+    taf_diff = abs(taf_fwd - taf_rev))
+
+}
+
+create_maf_key_ins_del <- function(x){
+  x %>% 
+    mutate(
+      alt_maf = sub('.', '', alt),
+      pos_maf = pos+1,
+      ref_maf = sub('.', '', ref),
+      variant_type = case_when(
+        nchar(alt) > nchar(ref) ~ "INS",
+        nchar(alt) < nchar(ref) ~ "DEL"),
+      key_maf = case_when(
+        variant_type == "INS" ~ glue("{chrom}:{pos}_-/{alt_maf}"),
+        variant_type == "DEL" ~ glue("{chrom}:{pos_maf}_{ref_maf}/-"),
+        TRUE ~ glue("{chrom}:{pos}_{ref}/{alt}")))
+}
 
 #' Parse a somatic VCF, with two samples.
 #'
@@ -484,10 +534,10 @@ if(FALSE){
   ggscatter(df_igv, "taf_rev", "ion_taf_rev")
   
   # ** ggscatter 
-  p_dp_full = filter(df_ion, type == "snp") %>% 
+  p_dp_full = tidylog::filter(df_ion, type == "snp") %>% 
     gghistogram("t_dp") + scale_x_log10()
   # peak cov in this one sample seems to be about 50
-  p_dp_filt = filter(df_ion, in_filtered == TRUE, type == "snp") %>% 
+  p_dp_filt = tidylog::filter(df_ion, in_filtered == TRUE, type == "snp") %>% 
     gghistogram("t_dp") + scale_x_log10()
   cowplot::plot_grid(p_dp_full, p_dp_filt)
   
