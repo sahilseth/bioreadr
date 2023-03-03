@@ -4,7 +4,9 @@
 get_ens_df <- function(ens_query = NULL, ah_id = NULL){
   p_load(AnnotationHub)
   ah = AnnotationHub()
+  # snapshotDate(ah) = "2021-02-24"
   human_ens <- query(ah, c("Homo sapiens", "EnsDb"))
+  human_ens
   
   # q_ens = query(ah, ens_query)
   # print(q_ens)
@@ -14,8 +16,10 @@ get_ens_df <- function(ens_query = NULL, ah_id = NULL){
 
   if(!is.null(ah_id))
     ens <- human_ens[[ah_id]]
-  if(is.null(ah_id))
+  if(is.null(ah_id)){
+    q_ens = query(ah, ens_query)
     ens <- human_ens[[q_ens$ah_id]]
+  }
   
   
   # extract gene level data
