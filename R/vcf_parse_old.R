@@ -1,14 +1,16 @@
-# job::job({p_install(SRAdb)})
-
 # generic --------
 as_n <- function(...) {
   as.numeric(gsub("\\.", NA, unlist(...)))
 }
+# - convert the input to a vector: unlist
+# - recode . to NA (VCF codes NA as .)
+# - convert to integer
 as_i <- function(...) {
   as.integer(gsub("\\.", NA, unlist(...)))
 }
 as_c <- function(...) {
   as.character(gsub("\\.", NA, unlist(...)))
+  
 }
 
 # transpose, if header info is NOT a matrix
@@ -77,14 +79,6 @@ splt_vcf_info <- function(x, cores = 1){
 }
 
 
-split_vep_consequence <- function(df, 
-                                  col,
-                                  pattern = "Allele|Consequence|IMPACT|SYMBOL|Gene|Feature_type|Feature|BIOTYPE|EXON|INTRON|HGVSc|HGVSp|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|FLAGS|SYMBOL_SOURCE|HGNC_ID"){
-  col_names = strsplit(pattern, "\\|")
-  # select the first one (based on what??)
-  
-  
-}
 # funcs for specific fields -------
 .get_value_type <- function(type){
   
@@ -115,8 +109,6 @@ split_vep_consequence <- function(df,
 read_vcf <- function(x, cores = 1) {
   require(dplyr)
   require(parallel)
-  require(futile.logger)
-  require(bedr)
   require(futile.logger)
   require(bedr)
 
@@ -299,7 +291,7 @@ read_vcf_somatic <- function(x, .vcf = NULL, samp = NULL, ref = NULL){
       colfunc = .get_value_type(df$Type)
       # mat[, df$colnm_t] = colfunc(mat[, df$colnm_t])
       # mat[, df$colnm_n] = colfunc(mat[, df$colnm_n])
-      mat %<>% dplyr::mutate_at(.vars = c(df$colnm_t, df$colnm_n), .funs = colfunc)
+      mat %<>% mutate_at(.vars = c(df$colnm_t, df$colnm_n), .funs = colfunc)
     }
   }
   
@@ -315,7 +307,7 @@ read_vcf_somatic <- function(x, .vcf = NULL, samp = NULL, ref = NULL){
       colnms_t_new = paste0(df$colnm_t, c("_ref", "_alt", "_alt2"))
       mat = tidyr::separate(mat, col = df$colnm_t, colnms_t_new, sep = ",", extra = "drop", fill = "right", remove = F)
       # change col type:
-      mat %<>% mutate_at(.vars = colnms_t_new, .funs = colfunc)            
+      mat %<>% mutate_at(.vars = colnms_t_new, .funs = colfunc)      
 
       # repeat for normal sample
       if(!is.null(ref)){
@@ -390,13 +382,6 @@ create_maf_key_ins_del <- function(x){
         variant_type == "INS" ~ glue("{chrom}:{pos}_-/{alt_maf}"),
         variant_type == "DEL" ~ glue("{chrom}:{pos_maf}_{ref_maf}/-"),
         TRUE ~ glue("{chrom}:{pos}_{ref}/{alt}")))
-}
-calc_taf_fwd_rev <- function(x){
-  x %>% mutate(
-    taf_fwd = t_fmt_f1r2_alt / (t_fmt_f1r2_alt + t_fmt_f1r2_ref),
-    taf_rev = t_fmt_f2r1_alt / (t_fmt_f2r1_alt + t_fmt_f2r1_ref),
-    taf_diff = abs(taf_fwd - taf_rev))
-
 }
 
 #' Parse a somatic VCF, with two samples.
@@ -543,10 +528,10 @@ if(FALSE){
   ggscatter(df_igv, "taf_rev", "ion_taf_rev")
   
   # ** ggscatter 
-  p_dp_full = tidylog::filter(df_ion, type == "snp") %>% 
+  p_dp_full = filter(df_ion, type == "snp") %>% 
     gghistogram("t_dp") + scale_x_log10()
   # peak cov in this one sample seems to be about 50
-  p_dp_filt = tidylog::filter(df_ion, in_filtered == TRUE, type == "snp") %>% 
+  p_dp_filt = filter(df_ion, in_filtered == TRUE, type == "snp") %>% 
     gghistogram("t_dp") + scale_x_log10()
   cowplot::plot_grid(p_dp_full, p_dp_filt)
   
