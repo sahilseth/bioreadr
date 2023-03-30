@@ -28,3 +28,14 @@ get_ens_df <- function(ens_query = NULL, ah_id = NULL){
     data.frame(row.names = .$gene_id)
    df_ens 
 }
+
+
+if(FALSE){
+  # R-4.0
+  # snapshot: 2020-10-27
+
+  # R-4.2
+  # snapshot: 2021-02-24
+  
+
+}

@@ -189,7 +189,7 @@ to_long.gr_seg <- function(gr_seg,
   # })
   
   # gr_seg
-  message("annotate with genes")
+  # message("annotate with genes")
   
   
   message("conv to bins for clustering")
@@ -197,7 +197,7 @@ to_long.gr_seg <- function(gr_seg,
 }
 
 
-to_grseg.gencode <- function(gencode_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b37/annotations/gencode/v19/gencode.v19.annotation_gene_hgnc.bed"){
+to_gr.gencode <- function(gencode_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b37/annotations/gencode/v19/gencode.v19.annotation_gene_hgnc.bed"){
   pacman::p_load(GenomicRanges, dplyr, janitor, glue, readr)
   df_gencode = data.table::fread(gencode_fl, data.table = F) %>% as_tibble() %>% clean_names()
   message("keep PC genes from gencode...")
@@ -219,6 +219,35 @@ to_grseg.gencode <- function(gencode_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b
   
 }
 
+to_gr.ens91 <- function(ens91_fl = "~/stash_home/ref/annotations/annotation_hub/ensembl91_hg38_AH60773.rds"){
+  pacman::p_load(GenomicRanges, dplyr, janitor, glue, readr)
+
+  ens91 = read_rds(ens91_fl)
+  # we will keep all genes, and look at protein coding genes, only later
+  # there might be issue of same region represented twice, but will figure that out later
+  # cases where we have same start, end, gene_name, merge gene_id
+  gr_genes = GenomicRanges::makeGRangesFromDataFrame(ens91$df_ens)
+
+  seqlevelsStyle(gr_genes) <- "UCSC"
+  
+  list(df_gencode = df_gencode,
+       df_gencode_pc = df_gencode,
+       gr_genes = gr_genes)
+  
+}
+
+if(FALSE){
+  gr_seg = read_rds("/stash/results/dev/seths3/P04492-20220524-0006-fl-rel/data/ngs360/wes/cnv/merged/sclust/gr_seg.rds")
+  do.call( )
+  gr_genes = ens91$hs.genes
+
+  df_cnv_ann_lng %>% 
+    write_rds("/stash/results/dev/seths3/P04492-20220524-0006-fl-rel/data/ngs360/wes/cnv/merged/sclust/df_cnv_ann_lng.rds")
+
+
+}
+
+
 # annotate CNV segment file
 # also create a matrix of genes X samples
 # https://support.bioconductor.org/p/97647/
@@ -231,24 +260,24 @@ to_grseg.gencode <- function(gencode_fl = "~/.rsrch3/home/iacs/sseth/ref/human/b
 #'
 #' @export
 annotate.gr_seg <- function(gr_seg,
-                            lst_gen
+                            gr_genes = lst_gen$gr_genes
 ){
   # print(class(gr_seg) == "GRanges")
   p_load(assertthat)
   assert_that(class(gr_seg) == "GRanges", msg = "gr_seg is not of class GRanges")
+  assert_that(class(gr_genes) == "GRanges", msg = "gr_genes is not of class GRanges")
   
-  library(assertthat)
   library(GenomicRanges)
-  pacman::p_load(GenomicRanges, dplyr, janitor, glue, readr)
+  pacman::p_load(GenomicRanges, dplyr, janitor, glue, readr, futile.logger)
   
-  gr_genes = lst_gen$gr_genes
+  # gr_genes = lst_gen$gr_genes
   
   # length(gr_genes)
-  flog.debug("make sure both use UCSC style")
+  flog.debug("make sure both use NCBI style")
   genomeStyles("Homo sapiens") %>% head(2)
   
-  seqlevelsStyle(gr_seg) <- "UCSC"
-  seqlevelsStyle(gr_genes) <- "UCSC"
+  seqlevelsStyle(gr_seg) <- "NCBI"
+  seqlevelsStyle(gr_genes) <- "NCBI"
   
   GenomicRanges::seqnames(gr_seg)
   GenomicRanges::seqnames(gr_genes)
@@ -263,6 +292,7 @@ annotate.gr_seg <- function(gr_seg,
   # there would certainly be multiple gene per seg
   long_annotated$gene_name = gr_genes[subjectHits(olaps)]$gene_name
   long_annotated$gene_id = gr_genes[subjectHits(olaps)]$gene_id
+  long_annotated$gene_biotype = gr_genes[subjectHits(olaps)]$gene_biotype
   # df_ann = ann[subjectHits(olaps)]
   # df_cnv_ann = cbind(long_annotated, df_ann)
   
@@ -341,7 +371,7 @@ to_se.ann_seg.exomecn <- function(df_cnv_ann_lng, lst_gen){
 
 to_mae.titan <- function(df_ann, trk, gencode_fl){
   
-  # create matrix -----
+  # ** create matrix -----
   message("convert into a matrix")
   resolve_state <- function(x){
     if(length(x) == 1) return(x)
@@ -405,6 +435,49 @@ to_mae.titan <- function(df_ann, trk, gencode_fl){
   
   mae
   
+}
+
+
+
+to_mae.sclust <- function(df_ann, trk, gr_genes){
+  
+  p_load(MultiAssayExperiment, futile.logger)
+  
+  # ** create matrix -----
+  # get the abs max, in case of duplicate values
+  resolve_state <- function(x){
+    if(length(x) == 1) return(x)
+    # mean(x, na.rm = T)
+    # if(is.na(x)) return(x)
+    x[which(abs(x) == max(abs(x)))][1]
+  }
+  
+  flog.info("convert into a matrix")
+  mat_ann_state_wd = df_ann %>%
+    pivot_wider(id_cols = "gene_id", names_from = "sample_id", values_from = "state",
+                values_fn = resolve_state) %>% wranglr::to_mat()
+  mat_ann_state_wd[1:5, 1:5] 
+  
+  mat_ann_state_corr_wd = df_ann %>%
+    pivot_wider(id_cols = "gene_id", names_from = "sample_id", values_from = "cnv_state_ploidy_corr",
+                values_fn = resolve_state) %>% wranglr::to_mat()
+  
+  flog.info("create rowdata/rowranges")
+  # lst_gencode = to_grseg.gencode(gencode_fl = gencode_fl)
+  rowdata = gr_genes[rownames(mat_ann_state_wd), ]
+  
+  flog.info("create summrizedexperiment")
+  se_state <- SummarizedExperiment::SummarizedExperiment(mat_ann_state_wd,
+                                                         rowRanges = rowdata)
+  se_state_corr <- SummarizedExperiment::SummarizedExperiment(mat_ann_state_corr_wd,
+                                                              rowRanges = rowdata)
+  flog.info("create coldata")
+  coldata = trk %>% data.frame(row.names = .$name)
+  
+  flog.info("create MAE")
+  mae = MultiAssayExperiment(experiments = list(se_state_corr = se_state_corr,
+                                                se_state = se_state), colData = coldata)
+  mae
 }
 
 
