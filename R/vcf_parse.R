@@ -373,10 +373,11 @@ calc_taf_fwd_rev <- function(x){
   x %>% mutate(
     taf_fwd = t_fmt_f1r2_alt / (t_fmt_f1r2_alt + t_fmt_f1r2_ref),
     taf_rev = t_fmt_f2r1_alt / (t_fmt_f2r1_alt + t_fmt_f2r1_ref),
-    taf_diff = abs(taf_fwd - taf_rev))
-
+    taf_diff = abs(taf_fwd - taf_rev),
+    t_af_vcf = t_fmt_ad_alt/t_fmt_dp,
+    n_af_vcf = n_fmt_ad_alt/n_fmt_dp)
+  
 }
-
 create_maf_key_ins_del <- function(x){
   x %>% 
     mutate(
@@ -391,13 +392,7 @@ create_maf_key_ins_del <- function(x){
         variant_type == "DEL" ~ glue("{chrom}:{pos_maf}_{ref_maf}/-"),
         TRUE ~ glue("{chrom}:{pos}_{ref}/{alt}")))
 }
-calc_taf_fwd_rev <- function(x){
-  x %>% mutate(
-    taf_fwd = t_fmt_f1r2_alt / (t_fmt_f1r2_alt + t_fmt_f1r2_ref),
-    taf_rev = t_fmt_f2r1_alt / (t_fmt_f2r1_alt + t_fmt_f2r1_ref),
-    taf_diff = abs(taf_fwd - taf_rev))
 
-}
 
 #' Parse a somatic VCF, with two samples.
 #'
