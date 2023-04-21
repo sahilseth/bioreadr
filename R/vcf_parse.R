@@ -475,26 +475,19 @@ read_vcf_germline <- function(x, samp = NULL){
 
 # example -------
 if(FALSE){
-  x ="/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ponm/vcfs/WEX-1004-N.vcf.gz"
   
   library(pacman)
   p_load(dplyr, janitor, glue, magrittr)
   
   source('~/Dropbox/public/flow-r/ultraseq/ultraseq/R/parse_vcfs.R')
-  x='/rsrch2/iacs/iacs_dep/sseth/flowr/runs/flowr_test/fastq_haplotyper-MS132-20150824-16-37-58-XScJT0OZ/tmp/GLizee-Pancreatic-MS132-MP013normalDNA.recalibed_1.haplotyper.vcf'
   x2 = parse_vcf(x)
   
-  x='~/rsrch1_data/runs/sarcomatoid/jco/mutect/sarco10-T_1208XX_ST1374_073_H09WGADXX___sarco10-N_1208XX_ST1374_073_H09WGADXX_filt2_onco.vcf'
   x2 = parse_somatic_vcf(x)
   
-  x = '/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ssm/m1_m2_ir/WEX-334187-T___matched_combvcf.vcf.gz'
   debug(parse_somatic_vcf);debug(parse_vcf)
   df = parse_somatic_vcf(x, '334187-T', '334187-N')
   
   # ** m2: sarco
-  df_ion = read_rds("/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/ionreporter/Exome_Sarcomatoid_334187-T.rds")
-  fl_m2 = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/mutect2/WEX-334187-T___matched_f1_cleannms_snp.vcf"
-  rds_m2 = "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/mutect2/WEX-334187-T___matched_f1_cleannms_snp.rds"
   # debug(read_vcf_somatic);#debug(parse_vcf)
   vcf = read_vcf_somatic(fl_m2, 
                          samp = '334187-T', 
@@ -549,15 +542,13 @@ if(FALSE){
   sock <- SRAdb::IGVsocket()
   source('~/Dropbox/projects/packs_dnaseq/R/igv_snapshot.R')
   source('~/Dropbox/public/github_wranglr/R/expect_columns.R')
-  bams = c("/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/bams/WEX-334187-N_nochr.bam",
-           "/rsrch3/home/iacs/sseth/flows/SS/sarco/mda/wex/bams/WEX-334187-T_nochr.bam")
   # debug(get_igv_snap)
   get_igv_snap(df_igv, 
                input_type = "bed",
                bams = bams, 
                method = "socket",
                sock = sock,
-               outdir = "~/Downloads/igv/sarco_334187_m2_strand_bias")
+               outdir = "~/Downloads/igv/")
   
   
 }
