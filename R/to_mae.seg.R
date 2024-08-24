@@ -439,7 +439,7 @@ to_mae.titan <- function(df_ann, trk, gencode_fl){
 
 
 
-to_mae.sclust <- function(df_ann, trk, gr_genes){
+to_mae.sclust <- function(df_ann_icn, df_ann_as, trk, gr_genes){
   
   p_load(MultiAssayExperiment, futile.logger)
   
@@ -452,34 +452,99 @@ to_mae.sclust <- function(df_ann, trk, gr_genes){
     x[which(abs(x) == max(abs(x)))][1]
   }
   
-  flog.info("convert into a matrix")
-  mat_ann_state_wd = df_ann %>%
-    pivot_wider(id_cols = "gene_id", names_from = "sample_id", values_from = "state",
+  flog.info("> convert into a matrix")
+  flog.info(">> resolve multiple states per gene, take abs max for duplicate values (un corr)")
+  mat_cn_corr_wd = df_ann_icn %>%
+    pivot_wider(id_cols = "gene_name", names_from = "bms_sample_id", values_from = "cnv_corrected",
                 values_fn = resolve_state) %>% wranglr::to_mat()
-  mat_ann_state_wd[1:5, 1:5] 
+  mat_cn_corr_wd[1:5, 1:5] 
   
-  mat_ann_state_corr_wd = df_ann %>%
-    pivot_wider(id_cols = "gene_id", names_from = "sample_id", values_from = "cnv_state_ploidy_corr",
+  flog.info(">> resolve multiple states per gene, take abs max for duplicate values (corr)")
+  mat_cnv_uncorr_wd = df_ann_icn %>%
+    pivot_wider(id_cols = "gene_name", names_from = "bms_sample_id", values_from = "log2_copy_ratio",
                 values_fn = resolve_state) %>% wranglr::to_mat()
+  dim(mat_cnv_uncorr_wd)
+  
+  flog.info(">> resolve multiple states per gene, take abs max for duplicate values (corr)")
+  mat_copy_nr_wd = df_ann_as %>%
+    pivot_wider(id_cols = "gene_name", names_from = "bms_sample_id", values_from = "copy_nr",
+                values_fn = resolve_state) %>% wranglr::to_mat()
+  mat_copy_nr_wd[1:2,1:2];dim(mat_copy_nr_wd)
   
   flog.info("create rowdata/rowranges")
   # lst_gencode = to_grseg.gencode(gencode_fl = gencode_fl)
-  rowdata = gr_genes[rownames(mat_ann_state_wd), ]
+  rowdata = gr_genes[rownames(mat_cn_corr_wd), ]
   
   flog.info("create summrizedexperiment")
-  se_state <- SummarizedExperiment::SummarizedExperiment(mat_ann_state_wd,
+  se_cn_corr <- SummarizedExperiment::SummarizedExperiment(mat_cn_corr_wd,
                                                          rowRanges = rowdata)
-  se_state_corr <- SummarizedExperiment::SummarizedExperiment(mat_ann_state_corr_wd,
+  se_uncorr <- SummarizedExperiment::SummarizedExperiment(mat_cnv_uncorr_wd,
                                                               rowRanges = rowdata)
+  se_copy_nr <- SummarizedExperiment::SummarizedExperiment(mat_copy_nr_wd,
+                                                          rowRanges = gr_genes[rownames(mat_copy_nr_wd), ])
+  
   flog.info("create coldata")
   coldata = trk %>% data.frame(row.names = .$name)
   
   flog.info("create MAE")
-  mae = MultiAssayExperiment(experiments = list(se_state_corr = se_state_corr,
-                                                se_state = se_state), colData = coldata)
+  mae = MultiAssayExperiment(experiments = list(se_cn_corr = se_cn_corr,
+                                                se_uncorr = se_uncorr,
+                                                se_copy_nr = se_copy_nr), colData = coldata)
   mae
 }
 
+to_mae.gatk <- function(df_ann, trk, gr_genes){
+  
+  p_load(MultiAssayExperiment, futile.logger)
+  
+  # ** create matrix -----
+  # get the abs max, in case of duplicate values
+  resolve_state <- function(x){
+    if(length(x) == 1) return(x)
+    # mean(x, na.rm = T)
+    # if(is.na(x)) return(x)
+    x[which(abs(x) == max(abs(x)))][1]
+  }
+  
+  flog.info("> convert into a matrix")
+  flog.info(">> resolve multiple logr per gene, take abs max for duplicate values")
+  mat_logr_med_wd = df_ann %>%
+    pivot_wider(id_cols = "gene_name", names_from = "sample_id", values_from = "log2_copy_ratio_posterior_50",
+                values_fn = resolve_state) %>% wranglr::to_mat()
+  dim(mat_logr_med_wd);mat_logr_med_wd[1:5, 1:5] 
+  
+  mat_segmean_wd = df_ann %>%
+    pivot_wider(id_cols = "gene_name", names_from = "sample_id", values_from = "mean_log2_copy_ratio",
+                values_fn = resolve_state) %>% wranglr::to_mat()
+  dim(mat_segmean_wd);mat_segmean_wd[1:5, 1:5] 
+
+  flog.info(">> resolve multiple baf per gene, take abs max for duplicate values (corr)")
+  mat_baf_wd = df_ann %>%
+    pivot_wider(id_cols = "gene_name", names_from = "sample_id", values_from = "minor_allele_fraction_posterior_50",
+                values_fn = resolve_state) %>% wranglr::to_mat()
+  dim(mat_baf_wd);mat_baf_wd[1:5, 1:5] 
+  
+  flog.info("create rowdata/rowranges")
+  # lst_gencode = to_grseg.gencode(gencode_fl = gencode_fl)
+  rowdata = gr_genes[rownames(mat_logr_med_wd), ]
+  
+  flog.info("create summrizedexperiment")
+  se_logr_med <- SummarizedExperiment::SummarizedExperiment(mat_logr_med_wd,
+                                                        rowRanges = rowdata)
+  se_segmean <- SummarizedExperiment::SummarizedExperiment(mat_segmean_wd,
+                                                            rowRanges = rowdata)
+  se_baf <- SummarizedExperiment::SummarizedExperiment(mat_baf_wd,
+                                                       rowRanges = rowdata)
+  flog.info("create coldata")
+  coldata = trk %>% data.frame(row.names = .$name)
+  
+  flog.info("create MAE")
+  mae = MultiAssayExperiment(experiments = list(se_logr_med = se_logr_med,
+                                                se_segmean = se_segmean,
+                                                se_baf = se_baf), 
+                             colData = coldata)
+  mae
+}
 
 to_cnvranger <- function(gr_seg){
   # https://bioconductor.org/packages/devel/bioc/vignettes/CNVRanger/inst/doc/CNVRanger.html#input-data-format

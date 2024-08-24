@@ -158,8 +158,12 @@ read_vcf <- function(x, cores = 1) {
   # total cols
   flog.info("Parsing format columns...")
   cols <- colnames(vcf$vcf)
-  cols_samp <- seq(grep("FORMAT", cols) + 1, ncol(vcf$vcf))
-  cols_samp <- cols[cols_samp]
+  if(length(grep("FORMAT", cols)) > 0){
+    cols_samp <- seq(grep("FORMAT", cols) + 1, ncol(vcf$vcf))
+    cols_samp <- cols[cols_samp]
+  }else{
+    cols_samp <- character(0)
+  }
   if (length(cols_samp) > 0) {
     message(" found ", length(cols_samp), " samples")
     # samp="334187-N"
@@ -181,7 +185,11 @@ read_vcf <- function(x, cores = 1) {
   colfixed <- !colnames(vcf$vcf) %in% c("FORMAT", cols_samp, "INFO")
 
   flog.info("Assembling data")
-  tab2 <- as_tibble(cbind(vcf$vcf[, ..colfixed], info_cols, format_cols))
+  tab2 <- as_tibble(cbind(vcf$vcf[, ..colfixed], info_cols))
+  # some VCFs have no format columns
+  if (length(cols_samp) > 0) {
+    tab2 = cbind(tab2, format_cols)
+  }
   head(tab2)
   colnames(tab2) <- tolower(colnames(tab2))
   return(list(vcf = vcf$vcf, tab = tab2, header = vcf$header))
@@ -378,6 +386,7 @@ calc_taf_fwd_rev <- function(x){
     n_af_vcf = n_fmt_ad_alt/n_fmt_dp)
   
 }
+
 create_maf_key_ins_del <- function(x){
   x %>% 
     mutate(
@@ -386,7 +395,9 @@ create_maf_key_ins_del <- function(x){
       ref_maf = sub('.', '', ref),
       variant_type = case_when(
         nchar(alt) > nchar(ref) ~ "INS",
-        nchar(alt) < nchar(ref) ~ "DEL"),
+        nchar(alt) < nchar(ref) ~ "DEL",
+        nchar(alt) == nchar(ref) & nchar(ref) == 1 ~ "SNP",
+        nchar(alt) == nchar(ref) & nchar(ref) == 2 ~ "DNP"),
       key_maf = case_when(
         variant_type == "INS" ~ glue("{chrom}:{pos}_-/{alt_maf}"),
         variant_type == "DEL" ~ glue("{chrom}:{pos_maf}_{ref_maf}/-"),

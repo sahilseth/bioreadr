@@ -12,8 +12,6 @@ sclust_read_seg <- function(x){
                   log2_copy_ratio = col_double()))
 }
 
-
-
 # SCLUST has several types of file
 # we will read all of them, and create a single object with all the information
 # we will attempt to use a similar format as pureCN
@@ -29,15 +27,21 @@ sclust_read_seg <- function(x){
 # to read sclust properly
 slust_read <- function(sclust_cn_summary, sclust_allelic_states, sclust_subclonal_cn,
                        sclust_icn, sclust_clusters, sclust_mclusters, 
-                       sclust_corr_seg, sclust_uncorr_seg){
+                       # sclust_corr_seg, 
+                       sclust_uncorr_seg,
+                       bms_sample_id){
   
+  p_load(futile.logger)
   # this is summary of the run
   # sample_name      purity ploidy 
   # fraction_subclonal_cn: fraction of subclonal CN
   # sex_estimated: sex of the patient from CNV
   # status: optimum, invariant (no sufficient CNV changes; purity estimated from mutations), forced, OR failed
   # fraction_inconsistent_segs: if no unique CNV solution was found
-  df_summ = read_tsv(sclust_cn_summary, col_types = "cnnnlci")
+  flog.info("read summary")
+  df_summ = read_tsv(sclust_cn_summary, col_types = "cnnnccn") %>% 
+    mutate(bms_sample_id = bms_sample_id)
+  df_summ
   
   # we are assuming this is PER sample
   # fair assumption
@@ -54,7 +58,10 @@ slust_read <- function(sclust_cn_summary, sclust_allelic_states, sclust_subclona
   # n_SNPs: total number of SNPs
   # Is_Subclonal_CN: 1/0 subclonal? Subclonal_P_value: confidnece
   # Is_Inconsistent_State: 1 - no unique solution was found
-  df_allelic_states = read_tsv(sclust_allelic_states, col_types = "cciiniiiinniiniini")
+  # this has HALF the segments as iCN and uncorrected
+  flog.info("read allelic states")
+  df_allelic_states = read_tsv(sclust_allelic_states, col_types = "cciiniiiinniiniini") %>% 
+    mutate(bms_sample_id = bms_sample_id)
   
   # list of all subclonal CNV events
   # Sample Chromosome Start End 
@@ -62,19 +69,24 @@ slust_read <- function(sclust_cn_summary, sclust_allelic_states, sclust_subclona
   # Clone1_A Clone1_B Clone1_Fraction; major minor in clone 1; estimated fraction of clone 1
   # Clone2_A Clone2_B Clone2_Fraction; major minor in clone 1; estimated fraction of clone 1
   # if we have more clones, this needs to be dynamic
-  df_subclonal_cn = read_tsv(sclust_subclonal_cn)
+  flog.info("read subclonal CN")
+  # number of clusters would be different each time, cant specify the columns here
+  df_subclonal_cn = read_tsv(sclust_subclonal_cn) %>% 
+    mutate(bms_sample_id = bms_sample_id)
   
   # format good for IGV; with corrected CNV
+  flog.info("read ICN")
   df_icn = read_tsv(sclust_icn, 
                     col_names = c("sample_name", "chr", "start", "stop", "probes", "cnv_corrected"), 
-                    cols(
+                    col_types = cols(
                       sample_name = col_character(),
                       chr = col_character(),
                       start = col_integer(),
                       stop = col_integer(),
                       probes = col_integer(),
                       cnv_corrected = col_double()
-                    ))
+                    )) %>% 
+    mutate(bms_sample_id = bms_sample_id)
   table(df_icn$cnv_corrected)
   
   # <sample>_ muts_expAF.txt
@@ -99,24 +111,39 @@ slust_read <- function(sclust_cn_summary, sclust_allelic_states, sclust_subclona
   # CCF: raw cancer cell fraction and its coverage
   # cluster ID; and CCF of the cluster, and probability
   # P0-PXX: probability of belonging to all other clusters (these sum to 1)
-  df_clusters = read_tsv(sclust_clusters) %>% clean_names() %>% 
-    mutate()
+  flog.info("read clusters")
+  df_clusters = data.table::fread(sclust_clusters, fill = TRUE, data.table = FALSE) %>% janitor::clean_names() %>% as_tibble() %>% 
+    mutate(bms_sample_id = bms_sample_id)
+  #   Detected 11 column names but the data has 10 columns. Filling rows automatically. Set fill=TRUE explicitly to avoid this warning.
+  # df_clusters = read_tsv(sclust_clusters) %>% clean_names()
+  # problems(df_clusters)
   
   # summry of the clusters
   # cluster ID, its CCF, number of mutations in the cluster
   # 
+  flog.info("read mcluster")
   df_mclusters = read_tsv(sclust_mclusters, 
                           col_types = cols(
                             Cluster_ID = col_double(),
                             CCF_Cluster = col_double(),
                             Cluster_Peak_Height = col_double(),
-                            Mutations_In_Cluster = col_double()))
+                            Mutations_In_Cluster = col_double())) %>% 
+    mutate(bms_sample_id = bms_sample_id)
   
   # add sample ids
-  df_mclusters %>% mutate()
+  # df_mclusters %>% mutate()
   
-  df_corr = sclust_read_seg(sclust_corr_seg)
-  df_uncorr = sclust_read_seg(sclust_uncorr_seg)
+  # flog.info("read corrected seg")
+  # df_corr = sclust_read_seg(sclust_corr_seg)
+  flog.info("read uncorrected seg")
+  if(is.na(sclust_uncorr_seg)){
+    df_uncorr = data.frame()
+  }else{
+    df_uncorr = sclust_read_seg(sclust_uncorr_seg) %>% 
+      mutate(bms_sample_id = bms_sample_id)
+  }
+
+  # df_uncorr = sclust_read_seg(sclust_uncorr_seg)
   
   list(df_summ = df_summ, 
        df_allelic_states = df_allelic_states,
@@ -124,7 +151,7 @@ slust_read <- function(sclust_cn_summary, sclust_allelic_states, sclust_subclona
        df_icn = df_icn, 
        df_clusters = df_clusters, 
        df_mclusters = df_mclusters, 
-       df_corr = df_corr, 
+       # df_corr = df_corr, 
        df_uncorr = df_uncorr)
 }
 
